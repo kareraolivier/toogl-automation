@@ -554,20 +554,12 @@ def _pick_description(rng, tid):
     return rng.choice(pool)
 
 
-def _fill_block(start, end, rng):
-    """Fill a time window with a few uneven chunks so the day does not look generated."""
+def _split_window(start, end, n, rng):
+    """Split [start, end) into exactly n uneven chunks (or fewer if the window is short)."""
     total = end - start
-    if total < 18:
+    if n <= 0 or total < 18:
         return []
-
-    if total < 45:
-        n = 1
-    elif total < 90:
-        n = rng.choice([1, 2, 2])
-    elif total < 150:
-        n = rng.choice([2, 2, 3])
-    else:
-        n = rng.choice([2, 3, 3, 4])
+    n = min(n, max(1, total // 22))
 
     slots = []
     cursor = start
@@ -579,10 +571,9 @@ def _fill_block(start, end, rng):
             dur = leftover - gap_end
         else:
             avg = leftover / pieces_left
-            dur = int(round(avg + rng.randint(-10, 10)))
+            dur = int(round(avg + rng.randint(-12, 12)))
             min_rest = 18 * (pieces_left - 1)
             dur = max(18, min(dur, leftover - min_rest))
-            # Prefer times that are not always :00 / :30
             if dur % 5 == 0 and rng.random() < 0.45:
                 dur += rng.choice([-2, -1, 1, 2])
                 dur = max(18, min(dur, leftover - min_rest))
@@ -591,7 +582,7 @@ def _fill_block(start, end, rng):
         slots.append((cursor, cursor + dur, dur))
         cursor += dur
         leftover = end - cursor
-        if i < n - 1 and leftover > 20 and rng.random() < 0.4:
+        if i < n - 1 and leftover > 22 and rng.random() < 0.35:
             pause = rng.randint(1, 3)
             cursor += pause
             leftover = end - cursor
@@ -601,7 +592,7 @@ def _fill_block(start, end, rng):
 def generate_all_entries():
     """
     Working day ~09:00–17:00 with lunch and standup ~10:30–11:00.
-    Start, lunch, end and chunk lengths jitter so it reads as a person, not a script.
+    Each day has 3, 4 or 5 Toggl blocks (standup counts as one). Never more than 5.
     """
     work_days = []
     d = START_DATE
@@ -615,38 +606,43 @@ def generate_all_entries():
     for d in work_days:
         day_rng = random.Random(42 + d.toordinal())
 
-        arrive = 9 * 60 + day_rng.randint(0, 14)                 # 09:00–09:14
-        standup_start = 10 * 60 + 30 + day_rng.randint(-6, 6)    # 10:24–10:36
+        arrive = 9 * 60 + day_rng.randint(0, 14)
+        standup_start = 10 * 60 + 30 + day_rng.randint(-6, 6)
         standup_len = day_rng.choice([25, 27, 28, 30, 32, 33, 35])
-        standup_end = standup_start + standup_len
-        lunch_start = 12 * 60 + day_rng.randint(-10, 18)         # 11:50–12:18
-        lunch_end = lunch_start + day_rng.randint(48, 72)        # 48–72 min
-        leave = 17 * 60 + day_rng.randint(-18, 10)               # 16:42–17:10
+        lunch_start = 12 * 60 + day_rng.randint(-10, 18)
+        lunch_len = day_rng.randint(48, 72)
+        leave = 17 * 60 + day_rng.randint(-18, 10)
 
-        # Keep the day in a sensible order.
         standup_start = max(standup_start, arrive + 50)
         standup_end = standup_start + standup_len
         lunch_start = max(lunch_start, standup_end + 25)
-        lunch_end = lunch_start + (lunch_end - lunch_start)
+        lunch_end = lunch_start + lunch_len
         leave = max(leave, lunch_end + 90)
+
+        # 3 / 4 / 5 blocks for the whole day, including standup.
+        n_total = day_rng.choice([3, 3, 4, 4, 4, 5, 5])
+        n_work = n_total - 1
+        if n_work == 2:
+            pre, mid, aft = 1, 0, 1
+        elif n_work == 3:
+            pre, mid, aft = day_rng.choice([(1, 0, 2), (1, 1, 1)])
+        else:
+            pre, mid, aft = day_rng.choice([(1, 1, 2), (1, 0, 3), (2, 1, 1)])
 
         phase_ids = _ids_for_day(d)
         work_ids = [i for i in phase_ids if i != STANDUP_TICKET_ID] or phase_ids
 
         blocks = [
-            _fill_block(arrive, standup_start, day_rng),
+            _split_window(arrive, standup_start, pre, day_rng),
             [(standup_start, standup_end, standup_len)],
-            _fill_block(standup_end, lunch_start, day_rng),
-            _fill_block(lunch_end, leave, day_rng),
+            _split_window(standup_end, lunch_start, mid, day_rng),
+            _split_window(lunch_end, leave, aft, day_rng),
         ]
 
         for b_idx, slots in enumerate(blocks):
             is_standup = b_idx == 1
             for start_m, end_m, dur in slots:
-                if is_standup:
-                    tid = STANDUP_TICKET_ID
-                else:
-                    tid = day_rng.choice(work_ids)
+                tid = STANDUP_TICKET_ID if is_standup else day_rng.choice(work_ids)
                 all_rows.append({
                     'date':         d.isoformat(),
                     'ticket':       tid,
