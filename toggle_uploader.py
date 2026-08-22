@@ -3,10 +3,11 @@
 =============================================================================
   Toggl Track Bulk Time Entry Uploader
   ─────────────────────────────────────
-  Pushes Kumva IoT / analytics time entries (May 5 – Aug 20, 2026)
-  to your Toggl account. All entries sit under client "Kumva" and
-  project "tickets". Working days only: weekends and Rwandan public
-  holidays are skipped (weekend holidays move to the next Monday).
+  Pushes Kumva time entries (May 5 – Aug 20, 2026) to Toggl.
+  Client "Kumva". Each GitHub-style ticket is its own Toggl project;
+  time-entry descriptions are the actual work notes. Days run
+  09:00–17:00 with standup around 10:30–11:00. Weekends and Rwandan
+  public holidays are skipped.
 
   RUN:
     python toggle_uploader.py
@@ -37,10 +38,9 @@ WORKSPACE_ID = "7421598"
 # ║  CONFIGURATION                                                           ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
 CLIENT_NAME              = "Kumva"
-PROJECT_NAME             = "tickets"
-DELAY_BETWEEN_REQUESTS   = 1.5    # seconds between each API call
+DELAY_BETWEEN_REQUESTS   = 1.0    # seconds between each API call
 BATCH_SIZE               = 50     # entries per batch
-DELAY_BETWEEN_BATCHES    = 10     # seconds pause between batches
+DELAY_BETWEEN_BATCHES    = 5      # seconds pause between batches
 MAX_RETRIES              = 3      # max retries on transient errors
 DRY_RUN                  = False  # set True to test without creating entries
 TIMEZONE_OFFSET          = "+02:00"  # Kigali = CAT = UTC+2
@@ -133,6 +133,277 @@ PHASES = [
         42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
     ]),
 ]
+
+STANDUP_TICKET_ID = 4
+
+# Time-entry descriptions (Toggl project name is the ticket title above).
+DESCRIPTIONS = {
+    1: [
+        "Reading Yannick's architecture doc and listing questions for kickoff",
+        "Going through the proposed system architecture with the rest of the stack in mind",
+        "Notes on how analytics would plug into the ingestion and output flow",
+    ],
+    2: [
+        "Reading the Kumva Insights Notion page on the backend stack",
+        "Skimming FastAPI / Influx / RabbitMQ notes and jotting what we actually need",
+        "Checking which services already exist vs what analytics still has to own",
+    ],
+    3: [
+        "Intro call with Sagamba, Alexandra and the Kumva team",
+        "Kickoff notes — what Kumva wants from the advisory system",
+        "Follow-up after the intro session, catching points I missed live",
+    ],
+    4: [
+        "Daily standup",
+        "Standup — shared what I am on and blockers",
+        "Morning standup with the analytics team",
+    ],
+    5: [
+        "Mental model session on poultry, farms and irrigation",
+        "Working through today's domain questions with the group",
+        "Writing up what we agreed about how a farm actually waters crops",
+    ],
+    6: [
+        "Doing the mental model exercises from today's session",
+        "Going back over yesterday's questions so they stick",
+        "Filling in the practical exercises Alexandra posted",
+    ],
+    7: [
+        "Setting up a small FastAPI service locally to get used to the stack",
+        "Python practice for the analytics service — routes, settings, tests",
+        "Reading FastAPI bits we will need for the assessment pipeline",
+    ],
+    8: [
+        "Reading the backend timeplan and marking what lands on analytics",
+        "Checking milestone dates against what we can realistically finish",
+        "Aligning my week with the Notion timeplan",
+    ],
+    9: [
+        "Sketching ingestion → processing → output on paper then in the doc",
+        "Walking the architecture from telemetry in to a recommendation out",
+        "Cleaning up the written flow so Kumva can review it",
+    ],
+    10: [
+        "Listing agent types and who talks to who",
+        "Notes on context / retrieval / recommendation agents",
+        "Clarifying how the three agents hand state between them",
+    ],
+    11: [
+        "Writing functional requirements per analytics component",
+        "Matching each box in the diagram to what it must actually do",
+        "Tightening the requirements before we share them",
+    ],
+    12: [
+        "Comparing function-based vs gateway LLM setups — pros/cons",
+        "Notes on routing, flexibility and observability for the two options",
+        "Drafting the architecture choice so we can discuss it Monday",
+    ],
+    13: [
+        "Building the analytics mermaid flow in mermaid.live",
+        "RabbitMQ in, LLM agents, notification out — getting the arrows right",
+        "Fixing the diagram after Yannick said evaluate should not fork three ways",
+    ],
+    14: [
+        "Revising the LLM flowchart from the feedback on the call",
+        "Moving the evaluate-document arrow to the top of the condition",
+        "Checking Thierry's Notion revision against the original sketch",
+    ],
+    15: [
+        "Writing the knowledge ingestion steps for the LLM service",
+        "Documenting how the recommendation agent attaches sources",
+        "Filling in the structured output: message, confidence, references",
+    ],
+    16: [
+        "Packaging the analytics proposal for the Kumva team to read",
+        "Cleaning the Google doc before we send it over",
+        "Double-checking the proposal matches what we said on the call",
+    ],
+    17: [
+        "DevOps catch-up on how we would deploy the analytics proposal",
+        "Notes from the deployment discussion — what they need from us",
+        "Following up on repo access and where the service will live",
+    ],
+    18: [
+        "Sprint planning with Thierry and setting up the GitHub board",
+        "Going through tickets we can actually take this sprint",
+        "Checking I have access to the analytics repo and project board",
+    ],
+    19: [
+        "Cloning Analytic_service and running the project-setup README locally",
+        "Getting env, dependencies and the sample app running",
+        "Checking the chore/project-setup branch so I can start from the same baseline",
+    ],
+    20: [
+        "Adding the tests folder layout Thierry asked for",
+        "Putting unit / integrations / fixtures in place on project-setup",
+        "Pulling the merged tests directory on dev and making sure pytest sees it",
+    ],
+    21: [
+        "Reviewing Noella's PR for farm context from Entity Services",
+        "Leaving comments on the farm context fetch",
+        "Checking the entity JSON shape against what analytics expects",
+    ],
+    22: [
+        "Reviewing the InfluxDB last-7-days telemetry fetch",
+        "Reading through how assessment time pulls the moisture series",
+        "Notes on the telemetry query window and tags",
+    ],
+    23: [
+        "Wiring the 7-day weather forecast client into analytics",
+        "Hitting AgroMonitoring and mapping the forecast payload",
+        "Testing the weather integration with a Kigali lat/lon",
+    ],
+    24: [
+        "Mapping AgroMonitoring fields we need for rainfall totals",
+        "Checking we actually get 7 days of rain, not 6",
+        "Writing the rainfall sum from the daily forecast blocks",
+    ],
+    25: [
+        "Converting forecast temperatures from Kelvin to Celsius",
+        "Fixing units on the weather response after Thierry's comment",
+        "Re-testing the forecast after the Kelvin change",
+    ],
+    26: [
+        "Trying OpenWeather One Call through the AgroMonitoring key",
+        "Checking the undocumented onecall path for the 7th day of rain",
+        "Comparing One Call daily rain vs the old 6-day sum",
+    ],
+    27: [
+        "Adding OpenMeteo as a weather provider behind env flags",
+        "Switching WEATHER_PROVIDER locally and confirming the 7-day series",
+        "Cleaning the weather client so AgroMonitoring / OpenWeather / OpenMeteo share one shape",
+    ],
+    28: [
+        "Reviewing the crop coefficient (Kc) lookup seed data",
+        "Checking Kc rows by crop type and growth stage",
+        "Comments on the Kc table PR",
+    ],
+    29: [
+        "Reviewing the soil moisture threshold lookup seed",
+        "Checking thresholds per crop and growth stage",
+        "Going through Charlotte's lookup table changes",
+    ],
+    30: [
+        "Reviewing max water per irrigation event by soil type",
+        "Checking the soil-type lookup against the irrigation spec",
+        "Notes on the lookup PR before we merge",
+    ],
+    31: [
+        "Reading Calculation 1 — soil moisture status assessment",
+        "Review comments on how we classify too-dry / ok / too-wet",
+        "Walking the moisture status logic with the spec open",
+    ],
+    32: [
+        "Reviewing crop water requirement (Calculation 2)",
+        "Checking ETc / Kc usage against the irrigation write-up",
+        "Comments on the crop water PR",
+    ],
+    33: [
+        "Reviewing soil water balance and moisture projection",
+        "Checking the balance formula vs rainfall and irrigation in",
+        "Notes on Calculation 3 before standup",
+    ],
+    34: [
+        "Reviewing irrigation requirement estimation",
+        "Checking mm-needed against the soil deficit",
+        "Comments on Calculation 4",
+    ],
+    35: [
+        "Reviewing trend analysis and the anomaly detection calc",
+        "Checking outlier rules so we do not flag normal noise",
+        "Notes on Calculations 5 and 6",
+    ],
+    36: [
+        "Reviewing how aggregates land in Analytics Postgres after a run",
+        "Checking the write path so we do not lose a failed assessment",
+        "Comments on the store-aggregates PR",
+    ],
+    37: [
+        "Reviewing the analytical context JSON we publish to RabbitMQ",
+        "Checking domain_tag and payload shape for the LLM service",
+        "Notes on the assemble-and-publish PR",
+    ],
+    38: [
+        "PR review on Analytic_service",
+        "Going through files changed and leaving comments",
+        "Re-reading a PR after the author pushed fixes",
+    ],
+    39: [
+        "Reviewing the weekly assessment trigger",
+        "Checking the 24h rolling moisture average for the intermediate run",
+        "Notes on when we fire a full vs intermediate assessment",
+    ],
+    40: [
+        "Addressing review comments on the weather forecast PR",
+        "Pushing the Kelvin fix and the 7-day rain follow-up",
+        "Re-testing after Thierry's last comment on the weather PR",
+    ],
+    41: [
+        "Reading the new irrigation spec (the version at the top of the Google doc)",
+        "Comparing spec v2 against what we already built",
+        "Highlighting steps that still need tickets",
+    ],
+    42: [
+        "Reviewing T-00 — reference / lookup data",
+        "Checking seed tables still match spec v2",
+        "Notes on missing lookup rows",
+    ],
+    43: [
+        "Reviewing T-01 — fetch readings and store them raw",
+        "Checking we are not transforming telemetry too early",
+        "Comments on the raw readings ticket",
+    ],
+    44: [
+        "Reviewing T-03 — missing water in millimetres",
+        "Walking the deficit calc with the spec beside it",
+        "Notes on units so we stay in mm until the later step",
+    ],
+    45: [
+        "Reviewing T-04 — subtract expected rain",
+        "Checking the 7-day rain input from the weather client",
+        "Comments on what we do when day 7 is missing",
+    ],
+    46: [
+        "Reviewing T-05 — water that never reaches the roots",
+        "Checking efficiency / lost-water accounting against the spec",
+        "Notes on T-05 before we estimate litres",
+    ],
+    47: [
+        "Reviewing T-06 — mm to litres",
+        "Checking the area conversion so litres are not off by a factor",
+        "Comments on the litres ticket",
+    ],
+    48: [
+        "Reviewing T-07 — split into watering sessions",
+        "Checking we respect max water per event from the soil table",
+        "Notes on session count vs equipment limits",
+    ],
+    49: [
+        "Reviewing T-08 — how long to run the equipment",
+        "Checking flow rate vs litres per session",
+        "Comments on run-time rounding",
+    ],
+    50: [
+        "Reviewing T-09a — reading the soil's condition",
+        "Checking we use the latest moisture plus the 7-day context",
+        "Notes on T-09a before the watering decision",
+    ],
+    51: [
+        "Reviewing T-09b — decide whether to water, and when",
+        "Walking the decision gates with spec v2",
+        "Comments on timing vs rain in the forecast",
+    ],
+    52: [
+        "Reviewing T-09c — confidence and permission gates",
+        "Checking we do not recommend irrigation when confidence is low",
+        "Notes on who is allowed to act on the recommendation",
+    ],
+    53: [
+        "Going through the end-to-end walkthrough Thierry posted",
+        "Listing gaps between the walkthrough and the open tickets",
+        "Tidying ticket wording after the walkthrough",
+    ],
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -264,10 +535,6 @@ def is_rwanda_workday(d):
 #  GENERATE TIME ENTRIES
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _ticket_by_id():
-    return {tid: desc for tid, desc in tickets}
-
-
 def _ids_for_day(d):
     for start, end, ids in PHASES:
         if start <= d <= end:
@@ -275,7 +542,67 @@ def _ids_for_day(d):
     return [t[0] for t in tickets]
 
 
+def _fmt_mins(total):
+    h, m = divmod(int(total), 60)
+    return f"{h:02d}:{m:02d}"
+
+
+def _pick_description(rng, tid):
+    pool = DESCRIPTIONS.get(tid)
+    if not pool:
+        return next(name for i, name in tickets if i == tid)
+    return rng.choice(pool)
+
+
+def _fill_block(start, end, rng):
+    """Fill a time window with a few uneven chunks so the day does not look generated."""
+    total = end - start
+    if total < 18:
+        return []
+
+    if total < 45:
+        n = 1
+    elif total < 90:
+        n = rng.choice([1, 2, 2])
+    elif total < 150:
+        n = rng.choice([2, 2, 3])
+    else:
+        n = rng.choice([2, 3, 3, 4])
+
+    slots = []
+    cursor = start
+    leftover = total
+    for i in range(n):
+        pieces_left = n - i
+        if pieces_left == 1:
+            gap_end = rng.randint(0, min(4, max(0, leftover - 18)))
+            dur = leftover - gap_end
+        else:
+            avg = leftover / pieces_left
+            dur = int(round(avg + rng.randint(-10, 10)))
+            min_rest = 18 * (pieces_left - 1)
+            dur = max(18, min(dur, leftover - min_rest))
+            # Prefer times that are not always :00 / :30
+            if dur % 5 == 0 and rng.random() < 0.45:
+                dur += rng.choice([-2, -1, 1, 2])
+                dur = max(18, min(dur, leftover - min_rest))
+        if dur < 15:
+            break
+        slots.append((cursor, cursor + dur, dur))
+        cursor += dur
+        leftover = end - cursor
+        if i < n - 1 and leftover > 20 and rng.random() < 0.4:
+            pause = rng.randint(1, 3)
+            cursor += pause
+            leftover = end - cursor
+    return slots
+
+
 def generate_all_entries():
+    """
+    Working day ~09:00–17:00 with lunch and standup ~10:30–11:00.
+    Start, lunch, end and chunk lengths jitter so it reads as a person, not a script.
+    """
     work_days = []
     d = START_DATE
     while d <= END_DATE:
@@ -283,82 +610,51 @@ def generate_all_entries():
             work_days.append(d)
         d += timedelta(days=1)
 
-    by_id = _ticket_by_id()
-    rng = random.Random(42)
-
-    def make_durations_for_day(day_rng, target):
-        durations = []
-        remaining = target
-        while remaining > 0:
-            if remaining >= 60:
-                dur = day_rng.choice([30, 45, 60])
-            elif remaining >= 45:
-                dur = day_rng.choice([30, 45])
-            elif remaining >= 30:
-                dur = 30
-            else:
-                if durations:
-                    durations[-1] += remaining
-                return durations
-            durations.append(dur)
-            remaining -= dur
-        return durations
-
-    def place_entries(durations, target):
-        # Morning 09:00–12:00, afternoon 13:00 until 15:00 / 15:30 / 16:00
-        morning = (540, 720)
-        if target <= 300:
-            afternoon = (780, 900)
-        elif target <= 330:
-            afternoon = (780, 930)
-        else:
-            afternoon = (780, 960)
-        blocks = [morning, afternoon]
-
-        entries = []
-        block_idx = 0
-        cursor = blocks[0][0]
-        for dur in durations:
-            placed = False
-            while block_idx < len(blocks):
-                bstart, bend = blocks[block_idx]
-                if cursor < bstart:
-                    cursor = bstart
-                if cursor + dur <= bend:
-                    sh, sm = divmod(cursor, 60)
-                    eh, em = divmod(cursor + dur, 60)
-                    entries.append((f"{sh:02d}:{sm:02d}", f"{eh:02d}:{em:02d}", dur))
-                    cursor += dur
-                    placed = True
-                    break
-                block_idx += 1
-                if block_idx < len(blocks):
-                    cursor = blocks[block_idx][0]
-            if not placed:
-                sh, sm = divmod(cursor, 60)
-                eh, em = divmod(cursor + dur, 60)
-                entries.append((f"{sh:02d}:{sm:02d}", f"{eh:02d}:{em:02d}", dur))
-                cursor += dur
-        return entries
-
     all_rows = []
+
     for d in work_days:
-        target = rng.choice([300, 300, 330, 360, 360])  # 5h, 5.5h, 6h
-        durations = make_durations_for_day(rng, target)
-        time_slots = place_entries(durations, target)
+        day_rng = random.Random(42 + d.toordinal())
+
+        arrive = 9 * 60 + day_rng.randint(0, 14)                 # 09:00–09:14
+        standup_start = 10 * 60 + 30 + day_rng.randint(-6, 6)    # 10:24–10:36
+        standup_len = day_rng.choice([25, 27, 28, 30, 32, 33, 35])
+        standup_end = standup_start + standup_len
+        lunch_start = 12 * 60 + day_rng.randint(-10, 18)         # 11:50–12:18
+        lunch_end = lunch_start + day_rng.randint(48, 72)        # 48–72 min
+        leave = 17 * 60 + day_rng.randint(-18, 10)               # 16:42–17:10
+
+        # Keep the day in a sensible order.
+        standup_start = max(standup_start, arrive + 50)
+        standup_end = standup_start + standup_len
+        lunch_start = max(lunch_start, standup_end + 25)
+        lunch_end = lunch_start + (lunch_end - lunch_start)
+        leave = max(leave, lunch_end + 90)
 
         phase_ids = _ids_for_day(d)
-        day_ids = [rng.choice(phase_ids) for _ in time_slots]
+        work_ids = [i for i in phase_ids if i != STANDUP_TICKET_ID] or phase_ids
 
-        for (start_t, end_t, dur), tid in zip(time_slots, day_ids):
-            all_rows.append({
-                'date':         d.isoformat(),
-                'ticket':       tid,
-                'description':  by_id[tid],
-                'start':        start_t,
-                'end':          end_t,
-                'duration_min': dur,
-            })
+        blocks = [
+            _fill_block(arrive, standup_start, day_rng),
+            [(standup_start, standup_end, standup_len)],
+            _fill_block(standup_end, lunch_start, day_rng),
+            _fill_block(lunch_end, leave, day_rng),
+        ]
+
+        for b_idx, slots in enumerate(blocks):
+            is_standup = b_idx == 1
+            for start_m, end_m, dur in slots:
+                if is_standup:
+                    tid = STANDUP_TICKET_ID
+                else:
+                    tid = day_rng.choice(work_ids)
+                all_rows.append({
+                    'date':         d.isoformat(),
+                    'ticket':       tid,
+                    'description':  _pick_description(day_rng, tid),
+                    'start':        _fmt_mins(start_m),
+                    'end':          _fmt_mins(end_m),
+                    'duration_min': dur,
+                })
 
     all_rows.sort(key=lambda r: (r['date'], r['start']))
     return all_rows
@@ -450,9 +746,13 @@ def save_projects_cache(cache):
 
 
 def _fresh_cache_if_client_changed(cache):
-    """Drop cached ids if they belong to a previous client (e.g. GrantHive)."""
-    if cache.get('client_name') != CLIENT_NAME or cache.get('project_name') != PROJECT_NAME:
-        return {'client_name': CLIENT_NAME, 'project_name': PROJECT_NAME}
+    """Drop cached ids unless they are Kumva + one Toggl project per ticket."""
+    if cache.get('client_name') != CLIENT_NAME or cache.get('layout') != 'per-ticket':
+        fresh = {'client_name': CLIENT_NAME, 'layout': 'per-ticket', 'projects': {}}
+        if cache.get('client_name') == CLIENT_NAME and 'client_id' in cache:
+            fresh['client_id'] = cache['client_id']
+        return fresh
+    cache.setdefault('projects', {})
     return cache
 
 
@@ -489,50 +789,64 @@ def get_or_create_client(cache):
     sys.exit(1)
 
 
-def get_or_create_project(cache, client_id):
-    """Return the single 'tickets' project ID under the Kumva client."""
-    if 'project_id' in cache:
-        return cache['project_id']
-
+def setup_projects(cache, client_id):
+    """Create one Toggl project per ticket title under the Kumva client."""
+    projects = cache.get('projects', {})
+    existing_by_name = {}
     r = api_get(f"{API_BASE}/workspaces/{WORKSPACE_ID}/projects")
     if r.status_code == 200:
         for p in r.json():
-            name_ok = p.get('name', '').lower() == PROJECT_NAME.lower()
-            client_ok = p.get('client_id') == client_id
-            if name_ok and client_ok:
-                print(f"   Found existing project: {PROJECT_NAME} (id={p['id']})")
-                cache['project_id'] = p['id']
-                cache['project_name'] = PROJECT_NAME
-                save_projects_cache(cache)
-                return p['id']
+            if p.get('client_id') == client_id and p.get('name'):
+                existing_by_name[p['name'].lower()] = p['id']
 
-    if DRY_RUN:
-        print(f"   [DRY RUN] Would create project: {PROJECT_NAME}")
-        cache['project_id'] = 0
-        cache['project_name'] = PROJECT_NAME
-        return 0
+    todo = [(tid, name) for tid, name in tickets if str(tid) not in projects]
+    if not todo:
+        print(f"   All {len(tickets)} projects already exist (cached).")
+        return projects
 
-    print(f"   Creating project: {PROJECT_NAME} under '{CLIENT_NAME}'...")
-    r = api_post(
-        f"{API_BASE}/workspaces/{WORKSPACE_ID}/projects",
-        {
-            "name":         PROJECT_NAME,
-            "workspace_id": int(WORKSPACE_ID),
-            "client_id":    client_id,
-            "active":       True,
-        },
-    )
-    if r.status_code in (200, 201):
-        pid = r.json()['id']
-        print(f"   Created project: {PROJECT_NAME} (id={pid})")
-        cache['project_id'] = pid
-        cache['project_name'] = PROJECT_NAME
-        save_projects_cache(cache)
+    print(f"   Creating {len(todo)} missing projects under '{CLIENT_NAME}'...")
+    for tid, name in todo:
+        if name.lower() in existing_by_name:
+            projects[str(tid)] = existing_by_name[name.lower()]
+            cache['projects'] = projects
+            cache['layout'] = 'per-ticket'
+            save_projects_cache(cache)
+            print(f"   Found [{tid:3d}] {name[:60]}")
+            continue
+
+        if DRY_RUN:
+            print(f"   [DRY RUN] Would create project: {name}")
+            projects[str(tid)] = 0
+            continue
+
+        r = api_post(
+            f"{API_BASE}/workspaces/{WORKSPACE_ID}/projects",
+            {
+                "name":         name,
+                "workspace_id": int(WORKSPACE_ID),
+                "client_id":    client_id,
+                "active":       True,
+            },
+        )
+        if r.status_code in (200, 201):
+            pid = r.json()['id']
+            projects[str(tid)] = pid
+            cache['projects'] = projects
+            cache['layout'] = 'per-ticket'
+            save_projects_cache(cache)
+            print(f"   + [{tid:3d}] {name[:60]}")
+        else:
+            print(f"   Failed to create project '{name}': {r.status_code} {r.text[:200]}")
+            cache['projects'] = projects
+            save_projects_cache(cache)
+            sys.exit(1)
+
         time.sleep(DELAY_BETWEEN_REQUESTS)
-        return pid
 
-    print(f"   Failed to create project '{PROJECT_NAME}': {r.status_code} {r.text[:200]}")
-    sys.exit(1)
+    cache['projects'] = projects
+    cache['layout'] = 'per-ticket'
+    save_projects_cache(cache)
+    return projects
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -554,14 +868,10 @@ def create_time_entry(entry, project_id, retry_count=0):
     }
 
     desc_lower = description.lower()
-    if 'bug' in desc_lower or 'fix' in desc_lower:
-        payload["tags"] = ["bugfix"]
-    elif 'review' in desc_lower:
-        payload["tags"] = ["review"]
-    elif 'mental model' in desc_lower or 'standup' in desc_lower or 'session' in desc_lower:
+    if entry.get('ticket') == STANDUP_TICKET_ID or 'standup' in desc_lower:
         payload["tags"] = ["meeting"]
-    elif 'architecture' in desc_lower or 'flowchart' in desc_lower or 'mermaid' in desc_lower:
-        payload["tags"] = ["design"]
+    elif 'review' in desc_lower or 'comment' in desc_lower:
+        payload["tags"] = ["review"]
     else:
         payload["tags"] = ["feature"]
 
@@ -609,7 +919,7 @@ def load_progress():
         with open(PROGRESS_FILE, 'r') as f:
             data = json.load(f)
         # Ignore leftover GrantHive progress.
-        if data.get("client_name") != CLIENT_NAME:
+        if data.get("client_name") != CLIENT_NAME or data.get("layout") != "per-ticket":
             return -1
         return data.get("last_completed_index", -1)
     except (FileNotFoundError, json.JSONDecodeError):
@@ -621,7 +931,7 @@ def save_progress(index):
         json.dump({
             "last_completed_index": index,
             "client_name": CLIENT_NAME,
-            "project_name": PROJECT_NAME,
+            "layout": "per-ticket",
         }, f)
 
 
@@ -639,8 +949,8 @@ def _confirm(prompt):
 def main():
     print("=" * 65)
     print("  TOGGL TRACK — BULK TIME ENTRY UPLOADER")
-    print(f"  Kumva / tickets | {START_DATE.strftime('%b %-d')} – {END_DATE.strftime('%b %-d, %Y')} | 5–6h/day")
-    print("  Skips weekends and Rwandan public holidays")
+    print(f"  Kumva | {START_DATE.strftime('%b %-d')} – {END_DATE.strftime('%b %-d, %Y')} | ~09:00–17:00")
+    print("  One Toggl project per ticket | standup ~10:30 | skips weekends/holidays")
     print("=" * 65)
     print()
 
@@ -648,11 +958,11 @@ def main():
         print("\nConnection failed. Please check your credentials and try again.")
         sys.exit(1)
 
-    print(f"\nSetting up {CLIENT_NAME} client and '{PROJECT_NAME}' project...")
+    print(f"\nSetting up {CLIENT_NAME} client and per-ticket projects...")
     cache     = _fresh_cache_if_client_changed(load_projects_cache())
     client_id = get_or_create_client(cache)
-    project_id = get_or_create_project(cache, client_id)
-    print(f"   Client '{CLIENT_NAME}' and project '{PROJECT_NAME}' ready.\n")
+    projects  = setup_projects(cache, client_id)
+    print(f"   {len(projects)} projects ready.\n")
 
     print("Generating time entries...")
     entries = generate_all_entries()
@@ -706,6 +1016,12 @@ def main():
                      if len(entry['description']) > 45 else entry['description']
         print(f"   [{i+1:3d}/{len(entries)}] ({pct:5.1f}%) #{entry['ticket']:3d} | "
               f"{entry['start']}-{entry['end']} | {desc_short}", end="", flush=True)
+
+        project_id = projects.get(str(entry['ticket']))
+        if not project_id:
+            print(" FAIL (missing project)")
+            fail_count += 1
+            continue
 
         ok = create_time_entry(entry, project_id)
 
