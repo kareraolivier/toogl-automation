@@ -673,8 +673,9 @@ def wait_for_quota(response_text):
     wait  = int(match.group(1)) + 5 if match else 3600
 
     if os.environ.get("CI"):
-        print(f"\n   Hourly API limit reached. Quota resets in ~{wait}s. "
-              f"Exiting — next scheduled run will resume automatically.")
+        print(f"\n   Hourly API limit reached. Nothing new was uploaded. "
+              f"Quota resets in ~{wait}s (~{wait // 60} min). "
+              f"Do not re-run until then — extra runs waste the next window.")
         sys.exit(0)
 
     resume_at = datetime.now() + timedelta(seconds=wait)

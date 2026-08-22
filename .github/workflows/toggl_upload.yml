@@ -2,7 +2,7 @@ name: Toggl Bulk Upload
 
 on:
   schedule:
-    - cron: '*/15 * * * *'   # every 15 min so tonight's quota windows are used
+    - cron: '5 * * * *'   # once per hour; Toggl's cap is hourly, */15 only burns quota
   workflow_dispatch:        # allows manual trigger from GitHub UI
 
 concurrency:
