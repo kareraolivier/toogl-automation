@@ -3,8 +3,10 @@
 =============================================================================
   Toggl Track Bulk Time Entry Uploader
   ─────────────────────────────────────
-  Pushes all 600 time entries (Jan 5 – Mar 20, 2026) to your Toggl account.
-  Each entry is linked to a per-ticket project under the "GrantHive" client.
+  Pushes Kumva IoT / analytics time entries (May 5 – Aug 20, 2026)
+  to your Toggl account. All entries sit under client "Kumva" and
+  project "tickets". Working days only: weekends and Rwandan public
+  holidays are skipped (weekend holidays move to the next Monday).
 
   RUN:
     python toggle_uploader.py
@@ -22,18 +24,20 @@ import random
 import sys
 import re
 import os
-from datetime import date, timedelta, datetime, timezone
+from collections import Counter
+from datetime import date, timedelta, datetime
 
 # ╔═══════════════════════════════════════════════════════════════════════════╗
 # ║  CREDENTIALS                                                             ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
-API_TOKEN    = os.environ.get("TOGGL_API_TOKEN", "2f51e545b6e888bb1a14aa62a05185a0")
-WORKSPACE_ID = "21314015"
+API_TOKEN    = os.environ.get("TOGGL_API_TOKEN", "dd9925ef2f345b6e423d143a24ee183e")
+WORKSPACE_ID = "7421598"
 
 # ╔═══════════════════════════════════════════════════════════════════════════╗
 # ║  CONFIGURATION                                                           ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
-GRANTHIVE_CLIENT_NAME    = "GrantHive"
+CLIENT_NAME              = "Kumva"
+PROJECT_NAME             = "tickets"
 DELAY_BETWEEN_REQUESTS   = 1.5    # seconds between each API call
 BATCH_SIZE               = 50     # entries per batch
 DELAY_BETWEEN_BATCHES    = 10     # seconds pause between batches
@@ -42,145 +46,256 @@ DRY_RUN                  = False  # set True to test without creating entries
 TIMEZONE_OFFSET          = "+02:00"  # Kigali = CAT = UTC+2
 PROGRESS_FILE            = "toggl_progress.json"
 PROJECTS_CACHE_FILE      = "toggl_projects_cache.json"
+START_DATE               = date(2026, 5, 5)
+END_DATE                 = date(2026, 8, 20)
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  TICKET DATA
+#  TICKET DATA  —  Kumva IoT / Analytic_service work
+#  Descriptions follow the Discord timeline and GitHub issues you owned
+#  or reviewed. Weighted later so weather-API work dominates Jul–Aug.
 # ═══════════════════════════════════════════════════════════════════════════
 
 tickets = [
-    (1,   "Enhance create request form"),
-    (2,   "Verify if the user has paid before allowing them to create a project"),
-    (3,   "Contact information revealing for Seeker"),
-    (4,   "Contact information revealing for Expert"),
-    (5,   "Seeker gets notified when expert makes payment"),
-    (6,   "Expert pay contact fee"),
-    (7,   "Limit projects for free users"),
-    (8,   "Open and edit a project"),
-    (9,   "View existing projects"),
-    (10,  "Restrict only grants CTAs ('Save' and 'Create Request') to only seeker accounts"),
-    (11,  "BUG: Expert details (expertise, location, experience) not specified on expert dashboard"),
-    (12,  "Seeker should be able to accept or reject the expert"),
-    (13,  "Confirm 'application withdrawal' button is not visible"),
-    (14,  "Creating Request Bug"),
-    (15,  "Fixing Expert Rejection Error"),
-    (16,  "The admin can't change the roles"),
-    (17,  "Find Grants with GrantGPT fetching issue"),
-    (18,  "Email Notification for Upcoming Grant Deadline"),
-    (19,  "Missing 'Submit Offer' Button in Expert Requests Detail View"),
-    (20,  "Grant and Project Field Inconsistencies"),
-    (21,  "Grant and Project Field Inconsistencies (cont.)"),
-    (22,  "(Expert) View NDA"),
-    (23,  "(Seeker) Filter requests"),
-    (24,  "(All) Show pop up after updating seekers, experts or admin's profile"),
-    (25,  "(Seeker) Refactor the side bar"),
-    (26,  "Missing 'Apply' button on the detailed request page"),
-    (27,  "(Seeker) Save grants to specific projects"),
-    (28,  "Seeker view NDA page"),
-    (29,  "Close request #64"),
-    (30,  "Deactivate projects when seeker subscription ended #82"),
-    (31,  "Pricing and subscriptions not displaying on billing page for Free users #84"),
-    (32,  "Displaying the number of matched grants on project card #86"),
-    (33,  "Access more actions via the 3-dots menu #44"),
-    (34,  "Remove .env file from git tracking system #14"),
-    (35,  "Matched Grants based on Project Info #57"),
-    (36,  "Bug: pricing modal not working for unauthenticated user #75"),
-    (37,  "Creating a payment webhook listener #59"),
-    (38,  "Creating a payment webhook listener #59 (cont.)"),
-    (39,  "Create a Project #56"),
-    (40,  "Frontend integration of project subscription #71"),
-    (41,  "Pop up remain open after successful submission #68"),
-    (42,  "Project Subscription checkout endpoint #70"),
-    (43,  "Getting Available Products (plans) from stripe #69"),
-    (44,  "Correct Spinner Behavior on Accept/Reject Actions #67"),
-    (45,  "Update seekers dashboard to avoid displaying stale data after profile update #31"),
-    (46,  "Matched Grants not showing in The Matched Tab #3"),
-    (47,  "Integrate Payment with frontend #60 / Grant Supabase access #21"),
-    (48,  "Quick actions cards have to appear clickable #10"),
-    (49,  "Profile API endpoint Check only authenticated, not permissions #18"),
-    (50,  "Privacy page overflow issue #13"),
-    (51,  "Reset Password Bug #7"),
-    (52,  "Creating Expert Account Bug #6"),
-    (53,  "Remove left filters on experts active requests #33"),
-    (54,  "Admin metrics cards contain no information #11"),
-    (55,  "User should not access log in page when already logged in #8"),
-    (56,  "BUG: Settings page shows profile page instead #9"),
-    (57,  "Creating Checkout endpoint on stripe #58"),
-    (58,  "View request's details button directs to not found page #20"),
-    (59,  "Feat: Add ESLint and Prettier and set up CI/CD #38"),
-    (60,  "Create an .env.example file #37"),
-    (61,  "In-App Alert Notification for Upcoming Grant Deadline #25"),
-    (62,  "(All) Create specific request - Add and Pre-fill Grant Title and Link #149"),
-    (63,  "(All) Refactor specific request creation form #157"),
-    (64,  "(All) Refactor design of the project page #136"),
-    (65,  "Refactoring columns with different languages #160"),
-    (66,  "(All) Edit request #146"),
-    (67,  "(Seeker) Refactor sign up journey incl. personal info, project info, matched grants #130"),
-    (68,  "Connect grants_wide_v2 to the granthive.app frontend"),
-    (69,  "(Expert) Fetch matched grants #122"),
-    (70,  "(All) Direct user to matched grants when clicking 'View grants' on project overview #131"),
-    (71,  "(All) Add Hamburger (Edit and Delete) Menu to Project Overview #142"),
-    (72,  "(All) View all grants by clicking 'Grants' button in top navigation #126"),
-    (73,  "(All) Add loaders for pages and actions #134"),
-    (74,  "(All) Display updated number of matched grants on project overview #132"),
-    (75,  "(Seeker) Display updated number of matched grants on dashboard #143"),
-    (76,  "(Expert) Hide expert's own support requests from available requests #147"),
-    (77,  "(All) Update sidebar #141"),
-    (78,  "Update location taxonomy #168"),
-    (79,  "Creating constants for all table names #158"),
-    (80,  "Admin Panel - Document Processing Branding Update #177"),
-    (81,  "Admin Panel - API Keys Branding Update #179"),
-    (82,  "Admin UI Changes #191"),
-    (83,  "Admin Panel - Document Sets Branding Update #174"),
-    (84,  "Centralizing supabase fetching #159"),
-    (85,  "Sign Up & Sign In page's Brand Update #170"),
-    (86,  "Consistent font Update #183"),
-    (87,  "Changing filtering location logic #166"),
-    (88,  "SSO implementation to onyx #184"),
-    (89,  "Side bar branding Update #172"),
-    (90,  "Centralized authentication #155"),
-    (91,  "Fixing React critical vulnerability #164"),
-    (92,  "Fixing signup popup when clicking grants #165"),
-    (93,  "Supabase Branching (Split Environments) #167"),
-    (94,  "Interactive Elements Branding Update #181"),
-    (95,  "Admin Panel - Slack Bots Branding Update #175"),
-    (96,  "Admin Panel - Slack Bots Branding Update #175 (cont.)"),
-    (97,  "Admin blue Background bug #189"),
-    (98,  "Automatic Upstream synchronization #154"),
-    (99,  "Navigation Menus Branding Update #180"),
-    (100, "Update Onyx #190"),
-    (101, "Implement CI/CD Workflow for Automated VPS Deployment #200"),
+    # ── Kickoff, architecture, domain (May) ──────────────────────────────
+    (1,  "Review Kumva proposed system architecture ahead of kickoff"),
+    (2,  "Study Kumva Insights backend tech stack and Notion notes"),
+    (3,  "Kumva intro session with Sagamba, Alexandra and the Kumva team"),
+    (4,  "Daily standup and garden sync with the Kumva delivery team"),
+    (5,  "Mental model session: poultry, farms and irrigation domain"),
+    (6,  "Work through mental model questions and practical exercises"),
+    (7,  "Python and FastAPI groundwork for the analytics service"),
+    (8,  "Read backend timeplan and align on analytics service milestones"),
+
+    # ── Architecture, agents, LLM flow (June – mid July) ─────────────────
+    (9,  "Map analytics architecture from data ingestion through output"),
+    (10, "Define analytics agent types, roles and how they collaborate"),
+    (11, "Write functional requirements for each analytics component"),
+    (12, "Compare function-based vs gateway-based LLM service designs"),
+    (13, "Draft analytics mermaid flow (RabbitMQ, LLM agents, notifications)"),
+    (14, "Revise LLM service flowchart after Kumva and Yannick feedback"),
+    (15, "Document knowledge ingestion and recommendation agent steps"),
+    (16, "Prepare analytics proposal and share with the Kumva team"),
+    (17, "DevOps deployment discussion based on the analytics proposal"),
+    (18, "Analytics GitHub board setup and sprint planning with Thierry"),
+
+    # ── Implementation: setup, weather API (your ticket), reviews ────────
+    (19, "Analytics Service project setup, README and local tooling"),
+    (20, "Add tests folder layout (unit, integrations, fixtures) on project-setup"),
+    (21, "Review farm context fetch from Entity Services (PR)"),
+    (22, "Review last-7-days InfluxDB telemetry fetch at assessment time"),
+    (23, "Integrate Weather Forecast API for 7-day forecast data"),
+    (24, "Map AgroMonitoring forecast fields and 7-day rainfall totals"),
+    (25, "Convert weather forecast temperatures from Kelvin to Celsius"),
+    (26, "Use OpenWeather One Call via AgroMonitoring key for full 7-day rain"),
+    (27, "Add OpenMeteo weather provider and env-based provider switching"),
+    (28, "Review crop coefficient (Kc) lookup seeding by crop and growth stage"),
+    (29, "Review soil moisture threshold lookup table seeding"),
+    (30, "Review soil type maximum water per irrigation event lookup"),
+    (31, "Review Calculation 1: soil moisture status assessment"),
+    (32, "Review Calculation 2: crop water requirement estimation"),
+    (33, "Review Calculation 3: soil water balance and moisture projection"),
+    (34, "Review Calculation 4: irrigation requirement estimation"),
+    (35, "Review Calculation 5 and 6: trend analysis and anomaly detection"),
+    (36, "Review storing computed aggregates in Analytics PostgreSQL"),
+    (37, "Review analytical context JSON assembly and RabbitMQ publish"),
+    (38, "Code review and PR feedback on Analytic_service"),
+    (39, "Review weekly scheduled assessment and 24h rolling moisture trigger"),
+    (40, "Address PR review comments on the weather forecast integration"),
+
+    # ── Irrigation spec v2 and T-series tickets (mid–late August) ────────
+    (41, "Study second version of the AI advisory irrigation specification"),
+    (42, "T-00 — Review reference data and lookup tables"),
+    (43, "T-01 — Review fetching readings and storing them raw"),
+    (44, "T-03 — Review missing-water calculation in millimetres"),
+    (45, "T-04 — Review subtracting expected rainfall from irrigation need"),
+    (46, "T-05 — Review lost-water accountability (water that never reaches roots)"),
+    (47, "T-06 — Review converting millimetres into litres"),
+    (48, "T-07 — Review splitting irrigation volume into watering sessions"),
+    (49, "T-08 — Review equipment run-time calculation"),
+    (50, "T-09a — Review reading the soil's condition"),
+    (51, "T-09b — Review decide-whether-to-water-and-when logic"),
+    (52, "T-09c — Review confidence score and permission gates"),
+    (53, "End-to-end analytics walkthrough and ticket refinement"),
 ]
+
+# Ticket ids that belong to each delivery phase (so May does not log August work).
+PHASES = [
+    (date(2026, 5, 5),  date(2026, 5, 31),  [1, 2, 3, 4, 5, 6, 7, 8]),
+    (date(2026, 6, 1),  date(2026, 7, 13),  [9, 10, 11, 12, 13, 14, 15, 16, 4, 8]),
+    (date(2026, 7, 14), date(2026, 7, 22),  [17, 18, 19, 20, 13, 14]),
+    (date(2026, 7, 23), date(2026, 8, 10),  [
+        23, 23, 23, 24, 24, 25, 25, 26, 27, 40,   # weather API — your issue
+        19, 20, 21, 21, 22, 38, 38, 38,
+        28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 39,
+    ]),
+    (date(2026, 8, 11), date(2026, 8, 20),  [
+        41, 41, 41, 53, 53, 38,
+        42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+    ]),
+]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  RWANDA WORKING DAYS
+#  Presidential Order N° 54/01: except 7 April (Genocide Memorial), a holiday
+#  that falls on a weekend is observed on the next working day (Monday).
+#  Two consecutive weekend holidays are compensated with one following weekday.
+#  Two holidays on the same weekday: the next weekday compensates the second.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# (month, day) — Genocide Memorial is flagged so it is never moved.
+_RW_FIXED_HOLIDAYS = (
+    (1, 1),   # New Year's Day
+    (1, 2),   # Day after New Year's Day
+    (2, 1),   # National Heroes' Day
+    (4, 7),   # Genocide Memorial Day — never substituted
+    (5, 1),   # Labour Day
+    (7, 1),   # Independence Day
+    (8, 15),  # Assumption Day
+    (7, 4),   # Liberation Day
+    (12, 25), # Christmas Day
+    (12, 26), # Boxing Day
+)
+_RW_GENOCIDE_MEMORIAL = (4, 7)
+
+# Announced each year by the Rwanda Muslims' Association.
+_RW_ISLAMIC_HOLIDAYS = {
+    2026: (
+        date(2026, 3, 20),  # Eid al-Fitr
+        date(2026, 5, 27),  # Eid al-Adha
+    ),
+}
+
+_holiday_cache = {}
+
+
+def _easter_sunday(year):
+    """Anonymous Gregorian computus."""
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
+
+
+def _umuganura(year):
+    """Friday of the first week of August (1–7 Aug)."""
+    first = date(year, 8, 1)
+    return first + timedelta(days=(4 - first.weekday()) % 7)
+
+
+def _first_weekday_on_or_after(d):
+    while d.weekday() >= 5:
+        d += timedelta(days=1)
+    return d
+
+
+def rwanda_observed_holidays(year):
+    """Observed public-holiday dates for Rwanda in `year` (includes substitutes)."""
+    if year in _holiday_cache:
+        return _holiday_cache[year]
+
+    genocide = date(year, *_RW_GENOCIDE_MEMORIAL)
+    nominal = []
+    for month, day in _RW_FIXED_HOLIDAYS:
+        if (month, day) != _RW_GENOCIDE_MEMORIAL:
+            nominal.append(date(year, month, day))
+
+    easter = _easter_sunday(year)
+    nominal.append(easter - timedelta(days=2))  # Good Friday
+    nominal.append(easter + timedelta(days=1))  # Easter Monday
+    nominal.append(_umuganura(year))
+    nominal.extend(_RW_ISLAMIC_HOLIDAYS.get(year, ()))
+
+    counts = Counter(nominal)
+    counts[genocide] += 1
+
+    # 7 April stays on 7 April even if it is a weekend — no substitute.
+    observed = {genocide}
+
+    def take_weekday(d):
+        d = _first_weekday_on_or_after(d)
+        while d in observed:
+            d = _first_weekday_on_or_after(d + timedelta(days=1))
+        observed.add(d)
+
+    for d, n in counts.items():
+        if d == genocide:
+            if n >= 2 and d.weekday() < 5:
+                take_weekday(d + timedelta(days=1))
+            continue
+        if d.weekday() < 5:
+            take_weekday(d)
+            if n >= 2:
+                take_weekday(d + timedelta(days=1))
+
+    weekend_dates = sorted(d for d in counts if d.weekday() >= 5 and d != genocide)
+    clusters = []
+    for d in weekend_dates:
+        if clusters and d == clusters[-1][-1] + timedelta(days=1):
+            clusters[-1].append(d)
+        else:
+            clusters.append([d])
+    for cluster in clusters:
+        take_weekday(cluster[-1] + timedelta(days=1))
+
+    _holiday_cache[year] = observed
+    return observed
+
+
+def is_rwanda_workday(d):
+    """True for Mon–Fri that is not an observed Rwandan public holiday."""
+    if d.weekday() >= 5:
+        return False
+    return d not in rwanda_observed_holidays(d.year)
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  GENERATE TIME ENTRIES
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _ticket_by_id():
+    return {tid: desc for tid, desc in tickets}
+
+
+def _ids_for_day(d):
+    for start, end, ids in PHASES:
+        if start <= d <= end:
+            return ids
+    return [t[0] for t in tickets]
+
+
 def generate_all_entries():
-    start_date = date(2026, 1, 5)
-    end_date   = date(2026, 3, 20)
-    work_days  = []
-    d = start_date
-    while d <= end_date:
-        if d.weekday() < 5:
+    work_days = []
+    d = START_DATE
+    while d <= END_DATE:
+        if is_rwanda_workday(d):
             work_days.append(d)
         d += timedelta(days=1)
 
-    random.seed(42)
+    by_id = _ticket_by_id()
+    rng = random.Random(42)
 
-    def make_durations_for_day(rng, target=480):
+    def make_durations_for_day(day_rng, target):
         durations = []
         remaining = target
         while remaining > 0:
             if remaining >= 60:
-                dur = rng.choice([30, 45, 60])
+                dur = day_rng.choice([30, 45, 60])
             elif remaining >= 45:
-                dur = rng.choice([30, 45])
+                dur = day_rng.choice([30, 45])
             elif remaining >= 30:
                 dur = 30
-            elif remaining >= 15:
-                if durations:
-                    durations[-1] += remaining
-                return durations
             else:
                 if durations:
                     durations[-1] += remaining
@@ -189,14 +304,20 @@ def generate_all_entries():
             remaining -= dur
         return durations
 
-    def place_entries(durations, overtime=False):
-        if overtime:
-            blocks = [(540, 780), (840, 1200)]
+    def place_entries(durations, target):
+        # Morning 09:00–12:00, afternoon 13:00 until 15:00 / 15:30 / 16:00
+        morning = (540, 720)
+        if target <= 300:
+            afternoon = (780, 900)
+        elif target <= 330:
+            afternoon = (780, 930)
         else:
-            blocks = [(540, 780), (840, 1080)]
-        entries  = []
+            afternoon = (780, 960)
+        blocks = [morning, afternoon]
+
+        entries = []
         block_idx = 0
-        cursor    = blocks[0][0]
+        cursor = blocks[0][0]
         for dur in durations:
             placed = False
             while block_idx < len(blocks):
@@ -210,10 +331,9 @@ def generate_all_entries():
                     cursor += dur
                     placed = True
                     break
-                else:
-                    block_idx += 1
-                    if block_idx < len(blocks):
-                        cursor = blocks[block_idx][0]
+                block_idx += 1
+                if block_idx < len(blocks):
+                    cursor = blocks[block_idx][0]
             if not placed:
                 sh, sm = divmod(cursor, 60)
                 eh, em = divmod(cursor + dur, 60)
@@ -221,43 +341,20 @@ def generate_all_entries():
                 cursor += dur
         return entries
 
-    entries_pool = []
-    for tid, desc in tickets:
-        repeats = random.choice([1, 2, 2, 3])
-        for _ in range(repeats):
-            entries_pool.append((tid, desc))
-    random.shuffle(entries_pool)
-
-    day_tickets = {d: [] for d in work_days}
-    idx = 0
-    for d in work_days:
-        n = random.randint(4, 6)
-        for _ in range(n):
-            if idx < len(entries_pool):
-                day_tickets[d].append(entries_pool[idx])
-                idx += 1
-            else:
-                day_tickets[d].append(random.choice(tickets))
-    while idx < len(entries_pool):
-        d = random.choice(work_days)
-        day_tickets[d].append(entries_pool[idx])
-        idx += 1
-
-    rng      = random.Random(99)
     all_rows = []
-
     for d in work_days:
-        overtime  = rng.random() < 0.12
-        target    = random.choice([480, 480, 480, 510, 540]) if overtime else 480
+        target = rng.choice([300, 300, 330, 360, 360])  # 5h, 5.5h, 6h
         durations = make_durations_for_day(rng, target)
-        time_slots = place_entries(durations, overtime)
-        tix = day_tickets[d]
-        for i, (start_t, end_t, dur) in enumerate(time_slots):
-            ticket = tix[i % len(tix)]
+        time_slots = place_entries(durations, target)
+
+        phase_ids = _ids_for_day(d)
+        day_ids = [rng.choice(phase_ids) for _ in time_slots]
+
+        for (start_t, end_t, dur), tid in zip(time_slots, day_ids):
             all_rows.append({
                 'date':         d.isoformat(),
-                'ticket':       ticket[0],
-                'description':  ticket[1],
+                'ticket':       tid,
+                'description':  by_id[tid],
                 'start':        start_t,
                 'end':          end_t,
                 'duration_min': dur,
@@ -352,83 +449,90 @@ def save_projects_cache(cache):
         json.dump(cache, f, indent=2)
 
 
+def _fresh_cache_if_client_changed(cache):
+    """Drop cached ids if they belong to a previous client (e.g. GrantHive)."""
+    if cache.get('client_name') != CLIENT_NAME or cache.get('project_name') != PROJECT_NAME:
+        return {'client_name': CLIENT_NAME, 'project_name': PROJECT_NAME}
+    return cache
+
+
 def get_or_create_client(cache):
-    """Return the GrantHive client ID, creating it if needed."""
+    """Return the Kumva client ID, creating it if needed."""
     if 'client_id' in cache:
         return cache['client_id']
 
-    # Check if client already exists
     r = api_get(f"{API_BASE}/workspaces/{WORKSPACE_ID}/clients")
     if r.status_code == 200:
         for c in r.json():
-            if c.get('name', '').lower() == GRANTHIVE_CLIENT_NAME.lower():
-                print(f"   Found existing client: {GRANTHIVE_CLIENT_NAME} (id={c['id']})")
+            if c.get('name', '').lower() == CLIENT_NAME.lower():
+                print(f"   Found existing client: {CLIENT_NAME} (id={c['id']})")
                 cache['client_id'] = c['id']
+                cache['client_name'] = CLIENT_NAME
                 save_projects_cache(cache)
                 return c['id']
 
-    # Create client
-    print(f"   Creating client: {GRANTHIVE_CLIENT_NAME}...")
+    print(f"   Creating client: {CLIENT_NAME}...")
     r = api_post(
         f"{API_BASE}/workspaces/{WORKSPACE_ID}/clients",
-        {"name": GRANTHIVE_CLIENT_NAME, "workspace_id": int(WORKSPACE_ID)},
+        {"name": CLIENT_NAME, "workspace_id": int(WORKSPACE_ID)},
     )
     if r.status_code in (200, 201):
         client_id = r.json()['id']
-        print(f"   Created client: {GRANTHIVE_CLIENT_NAME} (id={client_id})")
+        print(f"   Created client: {CLIENT_NAME} (id={client_id})")
         cache['client_id'] = client_id
+        cache['client_name'] = CLIENT_NAME
         save_projects_cache(cache)
         time.sleep(DELAY_BETWEEN_REQUESTS)
         return client_id
-    else:
-        print(f"   Failed to create client: {r.status_code} {r.text[:200]}")
-        sys.exit(1)
+
+    print(f"   Failed to create client: {r.status_code} {r.text[:200]}")
+    sys.exit(1)
 
 
-def setup_projects(cache, client_id):
-    """Create one Toggl project per unique ticket, return {ticket_id: project_id}."""
-    projects = cache.get('projects', {})
-    todo = [(tid, desc) for tid, desc in tickets if str(tid) not in projects]
+def get_or_create_project(cache, client_id):
+    """Return the single 'tickets' project ID under the Kumva client."""
+    if 'project_id' in cache:
+        return cache['project_id']
 
-    if not todo:
-        print(f"   All {len(tickets)} projects already exist (cached).")
-        return projects
+    r = api_get(f"{API_BASE}/workspaces/{WORKSPACE_ID}/projects")
+    if r.status_code == 200:
+        for p in r.json():
+            name_ok = p.get('name', '').lower() == PROJECT_NAME.lower()
+            client_ok = p.get('client_id') == client_id
+            if name_ok and client_ok:
+                print(f"   Found existing project: {PROJECT_NAME} (id={p['id']})")
+                cache['project_id'] = p['id']
+                cache['project_name'] = PROJECT_NAME
+                save_projects_cache(cache)
+                return p['id']
 
-    print(f"   Creating {len(todo)} missing projects under '{GRANTHIVE_CLIENT_NAME}'...")
-    for tid, desc in todo:
-        project_name = f"#{desc}"
-        if DRY_RUN:
-            print(f"   [DRY RUN] Would create project: {project_name}")
-            projects[str(tid)] = 0
-            continue
+    if DRY_RUN:
+        print(f"   [DRY RUN] Would create project: {PROJECT_NAME}")
+        cache['project_id'] = 0
+        cache['project_name'] = PROJECT_NAME
+        return 0
 
-        r = api_post(
-            f"{API_BASE}/workspaces/{WORKSPACE_ID}/projects",
-            {
-                "name":         project_name,
-                "workspace_id": int(WORKSPACE_ID),
-                "client_id":    client_id,
-                "active":       True,
-            },
-        )
-        if r.status_code in (200, 201):
-            pid = r.json()['id']
-            projects[str(tid)] = pid
-            cache['projects'] = projects
-            save_projects_cache(cache)
-            print(f"   + [{tid:3d}] {project_name[:60]}")
-        else:
-            print(f"   Failed to create project '{project_name}': {r.status_code} {r.text[:200]}")
-            # Save progress and exit so resume works
-            cache['projects'] = projects
-            save_projects_cache(cache)
-            sys.exit(1)
-
+    print(f"   Creating project: {PROJECT_NAME} under '{CLIENT_NAME}'...")
+    r = api_post(
+        f"{API_BASE}/workspaces/{WORKSPACE_ID}/projects",
+        {
+            "name":         PROJECT_NAME,
+            "workspace_id": int(WORKSPACE_ID),
+            "client_id":    client_id,
+            "active":       True,
+        },
+    )
+    if r.status_code in (200, 201):
+        pid = r.json()['id']
+        print(f"   Created project: {PROJECT_NAME} (id={pid})")
+        cache['project_id'] = pid
+        cache['project_name'] = PROJECT_NAME
+        save_projects_cache(cache)
         time.sleep(DELAY_BETWEEN_REQUESTS)
+        return pid
 
-    cache['projects'] = projects
-    save_projects_cache(cache)
-    return projects
+    print(f"   Failed to create project '{PROJECT_NAME}': {r.status_code} {r.text[:200]}")
+    sys.exit(1)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -449,14 +553,15 @@ def create_time_entry(entry, project_id, retry_count=0):
         "project_id":    int(project_id),
     }
 
-    # Tags based on ticket type
     desc_lower = description.lower()
     if 'bug' in desc_lower or 'fix' in desc_lower:
         payload["tags"] = ["bugfix"]
-    elif 'refactor' in desc_lower:
-        payload["tags"] = ["refactor"]
-    elif 'branding' in desc_lower or 'update' in desc_lower:
-        payload["tags"] = ["ui-update"]
+    elif 'review' in desc_lower:
+        payload["tags"] = ["review"]
+    elif 'mental model' in desc_lower or 'standup' in desc_lower or 'session' in desc_lower:
+        payload["tags"] = ["meeting"]
+    elif 'architecture' in desc_lower or 'flowchart' in desc_lower or 'mermaid' in desc_lower:
+        payload["tags"] = ["design"]
     else:
         payload["tags"] = ["feature"]
 
@@ -502,14 +607,29 @@ def create_time_entry(entry, project_id, retry_count=0):
 def load_progress():
     try:
         with open(PROGRESS_FILE, 'r') as f:
-            return json.load(f).get("last_completed_index", -1)
+            data = json.load(f)
+        # Ignore leftover GrantHive progress.
+        if data.get("client_name") != CLIENT_NAME:
+            return -1
+        return data.get("last_completed_index", -1)
     except (FileNotFoundError, json.JSONDecodeError):
         return -1
 
 
 def save_progress(index):
     with open(PROGRESS_FILE, 'w') as f:
-        json.dump({"last_completed_index": index}, f)
+        json.dump({
+            "last_completed_index": index,
+            "client_name": CLIENT_NAME,
+            "project_name": PROJECT_NAME,
+        }, f)
+
+
+def _confirm(prompt):
+    if os.environ.get("CI"):
+        return True
+    answer = input(prompt).strip().lower()
+    return answer != 'n'
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -519,8 +639,8 @@ def save_progress(index):
 def main():
     print("=" * 65)
     print("  TOGGL TRACK — BULK TIME ENTRY UPLOADER")
-    print("  600 entries | Jan 5 – Mar 20, 2026 | 8h/day")
-    print("  Projects linked to GrantHive client")
+    print(f"  Kumva / tickets | {START_DATE.strftime('%b %-d')} – {END_DATE.strftime('%b %-d, %Y')} | 5–6h/day")
+    print("  Skips weekends and Rwandan public holidays")
     print("=" * 65)
     print()
 
@@ -528,48 +648,53 @@ def main():
         print("\nConnection failed. Please check your credentials and try again.")
         sys.exit(1)
 
-    # ── Set up client & projects ──
-    print("\nSetting up GrantHive client and projects...")
-    cache     = load_projects_cache()
+    print(f"\nSetting up {CLIENT_NAME} client and '{PROJECT_NAME}' project...")
+    cache     = _fresh_cache_if_client_changed(load_projects_cache())
     client_id = get_or_create_client(cache)
-    projects  = setup_projects(cache, client_id)
-    print(f"   {len(projects)} projects ready.\n")
+    project_id = get_or_create_project(cache, client_id)
+    print(f"   Client '{CLIENT_NAME}' and project '{PROJECT_NAME}' ready.\n")
 
-    # ── Generate entries ──
     print("Generating time entries...")
     entries = generate_all_entries()
-    print(f"   {len(entries)} entries across {len(set(e['date'] for e in entries))} working days")
+    days = len(set(e['date'] for e in entries))
+    total_min = sum(e['duration_min'] for e in entries)
+    skipped_holidays = []
+    d = START_DATE
+    while d <= END_DATE:
+        if d.weekday() < 5 and not is_rwanda_workday(d):
+            skipped_holidays.append(d)
+        d += timedelta(days=1)
+    print(f"   {len(entries)} entries across {days} working days "
+          f"({total_min / 60:.1f} hours total, ~{total_min / 60 / days:.1f}h/day)")
+    if skipped_holidays:
+        print("   Skipped Rwandan holidays: " +
+              ", ".join(h.strftime("%a %d %b") for h in skipped_holidays))
 
-    # ── Check for resume ──
     last_done  = load_progress()
     start_from = last_done + 1
 
     if start_from > 0:
         print(f"\nResuming from entry {start_from + 1}/{len(entries)} "
               f"(previously completed {start_from})")
-        confirm = input("   Continue? [Y/n]: ").strip().lower()
-        if confirm == 'n':
+        if not _confirm("   Continue? [Y/n]: "):
             start_from = 0
             save_progress(-1)
     else:
         print(f"\nReady to upload {len(entries)} time entries to Toggl.")
         if DRY_RUN:
             print("   DRY RUN MODE — no entries will actually be created.")
-        confirm = input("   Proceed? [Y/n]: ").strip().lower()
-        if confirm == 'n':
+        if not _confirm("   Proceed? [Y/n]: "):
             print("   Aborted.")
             sys.exit(0)
 
-    # ── Upload loop ──
     print()
     success_count = 0
     fail_count    = 0
     current_date  = ""
 
     for i in range(start_from, len(entries)):
-        entry      = entries[i]
-        project_id = projects.get(str(entry['ticket']))
-        batch_num  = (i // BATCH_SIZE) + 1
+        entry     = entries[i]
+        batch_num = (i // BATCH_SIZE) + 1
 
         if entry['date'] != current_date:
             current_date = entry['date']
@@ -598,7 +723,6 @@ def main():
             print(f"\n   Batch {batch_num} complete. Pausing {DELAY_BETWEEN_BATCHES}s...")
             time.sleep(DELAY_BETWEEN_BATCHES)
 
-    # ── Summary ──
     print("\n" + "=" * 65)
     print("  UPLOAD COMPLETE")
     print("=" * 65)
@@ -611,7 +735,6 @@ def main():
         print("  Some entries failed. Re-run to retry from where it stopped.")
     else:
         try:
-            import os
             os.remove(PROGRESS_FILE)
         except OSError:
             pass
