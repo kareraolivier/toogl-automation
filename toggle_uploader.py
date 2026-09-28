@@ -3,7 +3,8 @@
 =============================================================================
   Toggl Track Bulk Time Entry Uploader
   ─────────────────────────────────────
-  Pushes Kumva time entries (May 5 – Sep 28, 2026) to Toggl.
+  Pushes Kumva time entries from where the last upload stopped
+  (8 Jun 2026, after 10:33) through today (28 Sep 2026) to Toggl.
   Client "Kumva". Each GitHub-style ticket is its own Toggl project;
   time-entry descriptions are the actual work notes. Days run
   09:00–17:00 with standup around 10:30–11:00. Weekends and Rwandan
@@ -49,8 +50,8 @@ PROGRESS_FILE            = "toggl_progress.json"
 PROJECTS_CACHE_FILE      = "toggl_projects_cache.json"
 COMPLETE_FILE            = "toggl_complete.json"
 WORKFLOW_FILE            = ".github/workflows/toggl_upload.yml"
-START_DATE               = date(2026, 5, 5)
-END_DATE                 = date(2026, 9, 28)
+START_DATE               = date(2026, 6, 8)   # day the previous run stopped
+END_DATE                 = date(2026, 9, 28)  # today
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  TICKET DATA  —  Kumva IoT / Analytic_service work
@@ -1029,19 +1030,36 @@ def load_progress():
             data = json.load(f)
         # Ignore leftover GrantHive progress.
         if data.get("client_name") != CLIENT_NAME or data.get("layout") != "per-ticket":
-            return -1
-        return data.get("last_completed_index", -1)
+            return {}
+        return data
     except (FileNotFoundError, json.JSONDecodeError):
-        return -1
+        return {}
 
 
-def save_progress(index):
+def save_progress(index, entry=None):
+    payload = {
+        "last_completed_index": index,
+        "client_name": CLIENT_NAME,
+        "layout": "per-ticket",
+    }
+    if entry:
+        payload["last_completed_date"] = entry["date"]
+        payload["last_completed_start"] = entry["start"]
+        payload["last_completed_end"] = entry["end"]
     with open(PROGRESS_FILE, 'w') as f:
-        json.dump({
-            "last_completed_index": index,
-            "client_name": CLIENT_NAME,
-            "layout": "per-ticket",
-        }, f)
+        json.dump(payload, f)
+
+
+def resume_index(entries, progress):
+    """First entry strictly after the last uploaded block (date + end time)."""
+    last_date = progress.get("last_completed_date")
+    last_end = progress.get("last_completed_end")
+    if last_date and last_end:
+        for i, entry in enumerate(entries):
+            if (entry["date"], entry["start"]) > (last_date, last_end):
+                return i
+        return len(entries)
+    return progress.get("last_completed_index", -1) + 1
 
 
 def is_upload_complete():
@@ -1105,7 +1123,7 @@ def _confirm(prompt):
 def main():
     print("=" * 65)
     print("  TOGGL TRACK — BULK TIME ENTRY UPLOADER")
-    print(f"  Kumva | {START_DATE.strftime('%b %-d')} – {END_DATE.strftime('%b %-d, %Y')} | ~09:00–17:00")
+    print(f"  Kumva | {START_DATE.strftime('%b %-d')} – {END_DATE.strftime('%b %-d, %Y')} | resume after last uploaded block")
     print("  One Toggl project per ticket | standup ~10:30 | skips weekends/holidays")
     print("=" * 65)
     print()
@@ -1141,8 +1159,8 @@ def main():
         print("   Skipped Rwandan holidays: " +
               ", ".join(h.strftime("%a %d %b") for h in skipped_holidays))
 
-    last_done  = load_progress()
-    start_from = last_done + 1
+    progress   = load_progress()
+    start_from = resume_index(entries, progress)
 
     if start_from >= len(entries):
         print("\n  Nothing left to upload. Marking complete and stopping the hourly job.")
@@ -1151,11 +1169,13 @@ def main():
         return
 
     if start_from > 0:
-        print(f"\nResuming from entry {start_from + 1}/{len(entries)} "
-              f"(previously completed {start_from})")
+        nxt = entries[start_from]
+        print(f"\nResuming from {nxt['date']} {nxt['start']} "
+              f"(entry {start_from + 1}/{len(entries)}, "
+              f"skipping {start_from} already uploaded)")
         if not _confirm("   Continue? [Y/n]: "):
-            start_from = 0
-            save_progress(-1)
+            print("   Aborted.")
+            sys.exit(0)
     else:
         print(f"\nReady to upload {len(entries)} time entries to Toggl.")
         if DRY_RUN:
@@ -1195,7 +1215,7 @@ def main():
         if ok:
             success_count += 1
             print(" OK")
-            save_progress(i)
+            save_progress(i, entry)
         else:
             fail_count += 1
             print(" FAIL")
