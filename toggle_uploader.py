@@ -3,11 +3,12 @@
 =============================================================================
   Toggl Track Bulk Time Entry Uploader
   ─────────────────────────────────────
-  Pushes Kumva time entries (May 5 – Aug 20, 2026) to Toggl.
+  Pushes Kumva time entries (May 5 – Sep 28, 2026) to Toggl.
   Client "Kumva". Each GitHub-style ticket is its own Toggl project;
   time-entry descriptions are the actual work notes. Days run
   09:00–17:00 with standup around 10:30–11:00. Weekends and Rwandan
-  public holidays are skipped.
+  public holidays are skipped. When the upload finishes, the hourly
+  GitHub Actions schedule is turned off.
 
   RUN:
     python toggle_uploader.py
@@ -46,8 +47,10 @@ DRY_RUN                  = False  # set True to test without creating entries
 TIMEZONE_OFFSET          = "+02:00"  # Kigali = CAT = UTC+2
 PROGRESS_FILE            = "toggl_progress.json"
 PROJECTS_CACHE_FILE      = "toggl_projects_cache.json"
+COMPLETE_FILE            = "toggl_complete.json"
+WORKFLOW_FILE            = ".github/workflows/toggl_upload.yml"
 START_DATE               = date(2026, 5, 5)
-END_DATE                 = date(2026, 8, 20)
+END_DATE                 = date(2026, 9, 28)
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  TICKET DATA  —  Kumva IoT / Analytic_service work
@@ -116,6 +119,26 @@ tickets = [
     (51, "T-09b — Review decide-whether-to-water-and-when logic"),
     (52, "T-09c — Review confidence score and permission gates"),
     (53, "End-to-end analytics walkthrough and ticket refinement"),
+
+    # ── Aug 21 – Sep 15: irrigation T-09 and related PRs ─────────────────
+    (54, "T-09a — Implement reading the soil's condition"),
+    (55, "T-09b — Decide whether to water, and when"),
+    (56, "Add gross irrigation requirement"),
+    (57, "Review T-10 store the assessment and publish it"),
+    (58, "Review T-11 make it run (celery-beat scheduler)"),
+    (69, "Review irrigation kernel pack refactoring"),
+
+    # ── Sep 16 – Sep 28: LLM-service tickets you opened / owned ──────────
+    (59, "L-00 — LLM service scaffolding (FastAPI, Ollama, health check)"),
+    (60, "L-01 — LLM project setup and RabbitMQ consumer connection"),
+    (61, "L-03 — Qdrant retrieval by domain collection"),
+    (62, "L-04 — Load domain knowledge from the repo"),
+    (63, "L-05 — Gateway: consume analytics, validate, build state"),
+    (64, "L-06 — Context Agent: parse, analyse, retrieval topics"),
+    (65, "L-07 — Knowledge Agent: query, search, evaluate evidence"),
+    (66, "L-08 — Recommendation message for text, USSD, IVR and email"),
+    (67, "L-09 — LangGraph workflow wiring and advisory handoff"),
+    (68, "L-10 — Agent 4: confidence gate, delivery and human-in-the-loop"),
 ]
 
 # Ticket ids that belong to each delivery phase (so May does not log August work).
@@ -131,6 +154,15 @@ PHASES = [
     (date(2026, 8, 11), date(2026, 8, 20),  [
         41, 41, 41, 53, 53, 38,
         42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+    ]),
+    (date(2026, 8, 21), date(2026, 9, 4),  [
+        42, 43, 50, 51, 54, 54, 38, 4,
+    ]),
+    (date(2026, 9, 5), date(2026, 9, 15),  [
+        54, 55, 55, 55, 56, 56, 51, 57, 38, 69, 4,
+    ]),
+    (date(2026, 9, 16), date(2026, 9, 28),  [
+        59, 59, 60, 66, 66, 63, 64, 65, 67, 68, 61, 62, 58, 38, 4,
     ]),
 ]
 
@@ -402,6 +434,86 @@ DESCRIPTIONS = {
         "Going through the end-to-end walkthrough Thierry posted",
         "Listing gaps between the walkthrough and the open tickets",
         "Tidying ticket wording after the walkthrough",
+    ],
+    54: [
+        "Implementing T-09a — reading the soil's condition from the latest moisture",
+        "Putting the soil condition logic back on after the revert",
+        "Checking T-09a against spec v2 before we decide whether to water",
+    ],
+    55: [
+        "Working on T-09b — decide whether to water, and when",
+        "Walking the watering decision gates with the forecast beside the spec",
+        "Addressing review comments on the decide-whether-to-water PR",
+    ],
+    56: [
+        "Adding gross irrigation so lost water is in the litres we actually apply",
+        "Checking gross vs net irrigation after the efficiency factor",
+        "Re-testing the gross irrigation path after the PR comments",
+    ],
+    57: [
+        "Reviewing T-10 — store the assessment and publish it",
+        "Checking Charlotte's store-and-publish PR against the RabbitMQ payload",
+        "Notes on what we persist vs what we send to the LLM service",
+    ],
+    58: [
+        "Reviewing T-11 — make it run with celery-beat",
+        "Checking the weekly and 24h triggers still fire an assessment",
+        "Notes on the scheduler PR before it lands on dev",
+    ],
+    59: [
+        "Scaffolding the LLM service — FastAPI, Ollama and a health check",
+        "Getting the LLM project to boot locally with the health endpoint green",
+        "Closing out L-00 project scaffolding",
+    ],
+    60: [
+        "LLM project setup — connecting as a RabbitMQ consumer of analytics messages",
+        "Checking the consume path from analytics into the LLM gateway",
+        "Notes on L-01 project setup vs the consumer ticket",
+    ],
+    61: [
+        "Working through Qdrant retrieval by domain collection",
+        "Checking we query the right collection for irrigation vs poultry",
+        "Notes on L-03 before the knowledge agent search loop",
+    ],
+    62: [
+        "Loading domain knowledge from the repo for the MVP ingest",
+        "Checking the markdown/docs we seed into Qdrant",
+        "Notes on L-04 ingest so Agent 2 has something to retrieve",
+    ],
+    63: [
+        "Gateway work — consume analytics JSON, validate it, build initial state",
+        "Checking the analytics payload still matches what the gateway expects",
+        "Notes on L-05 before we hand state to the context agent",
+    ],
+    64: [
+        "Context agent — parse telemetry, detect domain, generate retrieval topics",
+        "Checking the topics we send to the knowledge agent",
+        "Notes on L-06 after a dry run of the parse step",
+    ],
+    65: [
+        "Knowledge agent — build the query, search, evaluate whether we need more",
+        "Checking the refine-query loop does not spin forever",
+        "Notes on L-07 evaluate-documents vs the mermaid feedback",
+    ],
+    66: [
+        "Formatting the recommendation for text, USSD, IVR and email",
+        "Working on L-08 channel formats so comms can send without rewriting copy",
+        "Checking each channel stays inside its length limits",
+    ],
+    67: [
+        "Wiring the LangGraph workflow and the advisory handoff",
+        "Checking Agent 1 → 2 → 3 still match the mermaid flow",
+        "Notes on L-09 before the confidence gate",
+    ],
+    68: [
+        "Confidence gate, delivery and human-in-the-loop (L-10 / Agent 4)",
+        "Checking we do not send a recommendation when confidence is low",
+        "Notes on who has to approve before comms delivers it",
+    ],
+    69: [
+        "Reviewing the kernel pack refactor — entity metrics and irrigation pack",
+        "Reading the DomainPack contract and registry PRs",
+        "Notes on K-1 to K-4 so LLM work sits on a stable analytics kernel",
     ],
 }
 
@@ -932,6 +1044,53 @@ def save_progress(index):
         }, f)
 
 
+def is_upload_complete():
+    try:
+        with open(COMPLETE_FILE, 'r') as f:
+            return json.load(f).get("complete") is True
+    except (FileNotFoundError, json.JSONDecodeError):
+        return False
+
+
+def mark_upload_complete(total):
+    with open(COMPLETE_FILE, 'w') as f:
+        json.dump({
+            "complete": True,
+            "client_name": CLIENT_NAME,
+            "total_entries": total,
+            "finished_at": datetime.now().isoformat(timespec="seconds"),
+        }, f, indent=2)
+
+
+def disable_hourly_schedule():
+    """Comment out the cron so GitHub Actions stops after a successful upload."""
+    try:
+        with open(WORKFLOW_FILE, 'r') as f:
+            text = f.read()
+    except FileNotFoundError:
+        return False
+    new, n = re.subn(
+        r"^(\s*)- cron: ('5 \* \* \* \*'.*?)$",
+        r"\1# - cron: '5 * * * *'   # stopped: Toggl upload complete",
+        text,
+        count=1,
+        flags=re.M,
+    )
+    if n == 0:
+        return False
+    # Empty `schedule:` is invalid YAML — keep workflow_dispatch only.
+    new = re.sub(
+        r"\n  schedule:\n    # - cron:.*\n",
+        "\n",
+        new,
+        count=1,
+    )
+    with open(WORKFLOW_FILE, 'w') as f:
+        f.write(new)
+    print("   Hourly GitHub Actions schedule disabled.")
+    return True
+
+
 def _confirm(prompt):
     if os.environ.get("CI"):
         return True
@@ -950,6 +1109,11 @@ def main():
     print("  One Toggl project per ticket | standup ~10:30 | skips weekends/holidays")
     print("=" * 65)
     print()
+
+    if is_upload_complete():
+        print("  Upload already complete. Hourly job will not create more entries.")
+        disable_hourly_schedule()
+        return
 
     if not test_connection():
         print("\nConnection failed. Please check your credentials and try again.")
@@ -979,6 +1143,12 @@ def main():
 
     last_done  = load_progress()
     start_from = last_done + 1
+
+    if start_from >= len(entries):
+        print("\n  Nothing left to upload. Marking complete and stopping the hourly job.")
+        mark_upload_complete(len(entries))
+        disable_hourly_schedule()
+        return
 
     if start_from > 0:
         print(f"\nResuming from entry {start_from + 1}/{len(entries)} "
@@ -1046,12 +1216,13 @@ def main():
 
     if fail_count > 0:
         print("  Some entries failed. Re-run to retry from where it stopped.")
+    elif start_from < len(entries) and success_count + fail_count < (len(entries) - start_from):
+        print("  Stopped early (API limit). Next scheduled run will resume.")
     else:
-        try:
-            os.remove(PROGRESS_FILE)
-        except OSError:
-            pass
+        mark_upload_complete(len(entries))
+        disable_hourly_schedule()
         print("  All entries uploaded successfully!")
+        print("  Hourly GitHub Actions schedule is now off.")
     print()
 
 
