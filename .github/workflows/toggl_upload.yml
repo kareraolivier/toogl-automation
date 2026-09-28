@@ -1,9 +1,7 @@
 name: Toggl Bulk Upload
 
 on:
-  schedule:
-    - cron: '5 * * * *'   # once per hour; Toggl's cap is hourly, */15 only burns quota
-  workflow_dispatch:        # allows manual trigger from GitHub UI
+  workflow_dispatch:        # CSV import replaces the hourly upload; keep manual run as a fallback
 
 concurrency:
   group: toggl-upload
