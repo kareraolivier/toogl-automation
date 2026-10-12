@@ -33,7 +33,7 @@ from datetime import date, timedelta, datetime
 # ╔═══════════════════════════════════════════════════════════════════════════╗
 # ║  CREDENTIALS                                                             ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
-API_TOKEN    = os.environ["TOGGL_API_TOKEN"]
+API_TOKEN    = os.environ.get("TOGGL_API_TOKEN", "d01cecd78640e4a4786e8ec95265a8df")
 WORKSPACE_ID = "21632264"
 
 # ╔═══════════════════════════════════════════════════════════════════════════╗
