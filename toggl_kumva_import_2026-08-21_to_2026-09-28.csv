@@ -1,0 +1,107 @@
+User,Email,Client,Project,Description,Billable,Start date,Start time,Duration,Tags
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-01 — Review fetching readings and storing them raw,Reviewing T-01 — fetch readings and store them raw,No,2026-08-21,09:14:00,1:09:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Morning standup with the analytics team,No,2026-08-21,10:26:00,0:33:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-00 — Review reference data and lookup tables,Reviewing T-00 — reference / lookup data,No,2026-08-21,10:59:00,0:53:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,PR review on Analytic_service,No,2026-08-21,12:43:00,2:08:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Implement reading the soil's condition,Putting the soil condition logic back on after the revert,No,2026-08-21,14:52:00,1:58:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-01 — Review fetching readings and storing them raw,Comments on the raw readings ticket,No,2026-08-24,09:01:00,1:29:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-08-24,10:30:00,0:25:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-01 — Review fetching readings and storing them raw,Comments on the raw readings ticket,No,2026-08-24,13:01:00,3:41:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Review reading the soil's condition,Checking we use the latest moisture plus the 7-day context,No,2026-08-25,09:03:00,1:29:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Morning standup with the analytics team,No,2026-08-25,10:34:00,0:35:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,Going through files changed and leaving comments,No,2026-08-25,12:49:00,2:01:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-00 — Review reference data and lookup tables,Reviewing T-00 — reference / lookup data,No,2026-08-25,14:50:00,1:53:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-01 — Review fetching readings and storing them raw,Comments on the raw readings ticket,No,2026-08-26,09:01:00,1:31:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-08-26,10:32:00,0:33:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,Going through files changed and leaving comments,No,2026-08-26,13:18:00,3:37:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09b — Review decide-whether-to-water-and-when logic,Walking the decision gates with spec v2,No,2026-08-27,09:01:00,1:26:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Standup — shared what I am on and blockers,No,2026-08-27,10:29:00,0:33:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Review reading the soil's condition,Notes on T-09a before the watering decision,No,2026-08-27,13:11:00,3:32:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Implement reading the soil's condition,Implementing T-09a — reading the soil's condition from the latest moisture,No,2026-08-28,09:12:00,1:14:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Morning standup with the analytics team,No,2026-08-28,10:29:00,0:30:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,Re-reading a PR after the author pushed fixes,No,2026-08-28,12:46:00,3:57:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09b — Review decide-whether-to-water-and-when logic,Walking the decision gates with spec v2,No,2026-08-31,09:10:00,1:22:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Standup — shared what I am on and blockers,No,2026-08-31,10:33:00,0:28:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Implement reading the soil's condition,Putting the soil condition logic back on after the revert,No,2026-08-31,13:04:00,1:56:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09b — Review decide-whether-to-water-and-when logic,Comments on timing vs rain in the forecast,No,2026-08-31,15:02:00,2:03:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,Going through files changed and leaving comments,No,2026-09-01,09:11:00,1:21:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Morning standup with the analytics team,No,2026-09-01,10:36:00,0:25:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Implement reading the soil's condition,Implementing T-09a — reading the soil's condition from the latest moisture,No,2026-09-01,11:01:00,1:06:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Implement reading the soil's condition,Implementing T-09a — reading the soil's condition from the latest moisture,No,2026-09-01,13:21:00,3:29:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09b — Review decide-whether-to-water-and-when logic,"Reviewing T-09b — decide whether to water, and when",No,2026-09-02,09:13:00,1:07:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Morning standup with the analytics team,No,2026-09-02,10:24:00,0:27:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-00 — Review reference data and lookup tables,Notes on missing lookup rows,No,2026-09-02,13:05:00,3:55:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Implement reading the soil's condition,Implementing T-09a — reading the soil's condition from the latest moisture,No,2026-09-03,09:00:00,1:25:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Morning standup with the analytics team,No,2026-09-03,10:28:00,0:33:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,Re-reading a PR after the author pushed fixes,No,2026-09-03,13:06:00,1:42:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09b — Review decide-whether-to-water-and-when logic,Comments on timing vs rain in the forecast,No,2026-09-03,14:51:00,1:52:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Implement reading the soil's condition,Checking T-09a against spec v2 before we decide whether to water,No,2026-09-04,09:07:00,1:23:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Standup — shared what I am on and blockers,No,2026-09-04,10:33:00,0:32:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09b — Review decide-whether-to-water-and-when logic,"Reviewing T-09b — decide whether to water, and when",No,2026-09-04,12:40:00,2:05:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Implement reading the soil's condition,Checking T-09a against spec v2 before we decide whether to water,No,2026-09-04,14:45:00,2:03:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Add gross irrigation requirement,Checking gross vs net irrigation after the efficiency factor,No,2026-09-07,09:05:00,1:24:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Standup — shared what I am on and blockers,No,2026-09-07,10:32:00,0:25:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Add gross irrigation requirement,Adding gross irrigation so lost water is in the litres we actually apply,No,2026-09-07,10:57:00,0:57:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"T-09b — Decide whether to water, and when",Walking the watering decision gates with the forecast beside the spec,No,2026-09-07,12:52:00,3:55:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,Going through files changed and leaving comments,No,2026-09-08,09:03:00,1:26:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-09-08,10:29:00,0:35:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,PR review on Analytic_service,No,2026-09-08,11:04:00,0:45:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Implement reading the soil's condition,Checking T-09a against spec v2 before we decide whether to water,No,2026-09-08,13:00:00,3:59:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"T-09b — Decide whether to water, and when",Addressing review comments on the decide-whether-to-water PR,No,2026-09-09,09:08:00,1:17:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-09-09,10:29:00,0:25:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,Re-reading a PR after the author pushed fixes,No,2026-09-09,10:54:00,1:06:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Add gross irrigation requirement,Re-testing the gross irrigation path after the PR comments,No,2026-09-09,13:03:00,3:46:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"T-09b — Decide whether to water, and when",Walking the watering decision gates with the forecast beside the spec,No,2026-09-10,09:05:00,1:24:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-09-10,10:32:00,0:27:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09b — Review decide-whether-to-water-and-when logic,Comments on timing vs rain in the forecast,No,2026-09-10,12:59:00,1:09:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09b — Review decide-whether-to-water-and-when logic,Walking the decision gates with spec v2,No,2026-09-10,14:08:00,1:36:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"T-09b — Decide whether to water, and when",Addressing review comments on the decide-whether-to-water PR,No,2026-09-10,15:47:00,1:12:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"T-09b — Decide whether to water, and when",Walking the watering decision gates with the forecast beside the spec,No,2026-09-11,09:00:00,1:26:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-09-11,10:26:00,0:28:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Add gross irrigation requirement,Checking gross vs net irrigation after the efficiency factor,No,2026-09-11,13:03:00,2:06:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Review irrigation kernel pack refactoring,Notes on K-1 to K-4 so LLM work sits on a stable analytics kernel,No,2026-09-11,15:09:00,1:53:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"T-09b — Decide whether to water, and when",Walking the watering decision gates with the forecast beside the spec,No,2026-09-14,09:07:00,1:20:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Morning standup with the analytics team,No,2026-09-14,10:31:00,0:28:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09a — Implement reading the soil's condition,Putting the soil condition logic back on after the revert,No,2026-09-14,13:07:00,3:45:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,T-09b — Review decide-whether-to-water-and-when logic,Walking the decision gates with spec v2,No,2026-09-15,09:13:00,1:12:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-09-15,10:29:00,0:30:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"T-09b — Decide whether to water, and when",Walking the watering decision gates with the forecast beside the spec,No,2026-09-15,10:59:00,1:05:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Add gross irrigation requirement,Re-testing the gross irrigation path after the PR comments,No,2026-09-15,13:03:00,3:42:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-08 — Recommendation message for text, USSD, IVR and email",Checking each channel stays inside its length limits,No,2026-09-16,09:10:00,1:21:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Standup — shared what I am on and blockers,No,2026-09-16,10:32:00,0:35:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Review T-11 make it run (celery-beat scheduler),Reviewing T-11 — make it run with celery-beat,No,2026-09-16,12:56:00,1:51:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-08 — Recommendation message for text, USSD, IVR and email",Working on L-08 channel formats so comms can send without rewriting copy,No,2026-09-16,14:49:00,2:03:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Review T-11 make it run (celery-beat scheduler),Checking the weekly and 24h triggers still fire an assessment,No,2026-09-17,09:08:00,1:16:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Standup — shared what I am on and blockers,No,2026-09-17,10:26:00,0:27:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,L-09 — LangGraph workflow wiring and advisory handoff,Checking Agent 1 → 2 → 3 still match the mermaid flow,No,2026-09-17,13:07:00,1:53:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Review T-11 make it run (celery-beat scheduler),Reviewing T-11 — make it run with celery-beat,No,2026-09-17,15:03:00,1:40:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,L-04 — Load domain knowledge from the repo,Notes on L-04 ingest so Agent 2 has something to retrieve,No,2026-09-18,09:12:00,1:14:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-09-18,10:28:00,0:35:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,L-03 — Qdrant retrieval by domain collection,Working through Qdrant retrieval by domain collection,No,2026-09-18,13:03:00,2:03:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Review T-11 make it run (celery-beat scheduler),Checking the weekly and 24h triggers still fire an assessment,No,2026-09-18,15:08:00,1:37:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-10 — Agent 4: confidence gate, delivery and human-in-the-loop",Checking we do not send a recommendation when confidence is low,No,2026-09-21,09:10:00,0:52:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,L-03 — Qdrant retrieval by domain collection,Working through Qdrant retrieval by domain collection,No,2026-09-21,10:02:00,0:26:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-09-21,10:32:00,0:28:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-06 — Context Agent: parse, analyse, retrieval topics",Notes on L-06 after a dry run of the parse step,No,2026-09-21,11:00:00,1:18:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-08 — Recommendation message for text, USSD, IVR and email","Formatting the recommendation for text, USSD, IVR and email",No,2026-09-21,13:14:00,3:34:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,L-04 — Load domain knowledge from the repo,Notes on L-04 ingest so Agent 2 has something to retrieve,No,2026-09-22,09:01:00,1:22:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Morning standup with the analytics team,No,2026-09-22,10:25:00,0:33:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-10 — Agent 4: confidence gate, delivery and human-in-the-loop","Confidence gate, delivery and human-in-the-loop (L-10 / Agent 4)",No,2026-09-22,12:56:00,3:55:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-00 — LLM service scaffolding (FastAPI, Ollama, health check)","Scaffolding the LLM service — FastAPI, Ollama and a health check",No,2026-09-23,09:13:00,1:18:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-09-23,10:33:00,0:27:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-08 — Recommendation message for text, USSD, IVR and email","Formatting the recommendation for text, USSD, IVR and email",No,2026-09-23,12:45:00,1:52:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,L-04 — Load domain knowledge from the repo,Loading domain knowledge from the repo for the MVP ingest,No,2026-09-23,14:37:00,2:11:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,L-04 — Load domain knowledge from the repo,Checking the markdown/docs we seed into Qdrant,No,2026-09-24,09:05:00,1:17:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Standup — shared what I am on and blockers,No,2026-09-24,10:26:00,0:28:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-00 — LLM service scaffolding (FastAPI, Ollama, health check)",Closing out L-00 project scaffolding,No,2026-09-24,13:09:00,1:13:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,Re-reading a PR after the author pushed fixes,No,2026-09-24,14:22:00,1:08:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Review T-11 make it run (celery-beat scheduler),Checking the weekly and 24h triggers still fire an assessment,No,2026-09-24,15:32:00,1:29:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,L-03 — Qdrant retrieval by domain collection,Checking we query the right collection for irrigation vs poultry,No,2026-09-25,09:11:00,1:25:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-09-25,10:36:00,0:35:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-08 — Recommendation message for text, USSD, IVR and email","Formatting the recommendation for text, USSD, IVR and email",No,2026-09-25,13:17:00,1:12:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-10 — Agent 4: confidence gate, delivery and human-in-the-loop",Checking we do not send a recommendation when confidence is low,No,2026-09-25,14:30:00,1:02:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,"L-08 — Recommendation message for text, USSD, IVR and email","Formatting the recommendation for text, USSD, IVR and email",No,2026-09-25,15:32:00,1:23:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Code review and PR feedback on Analytic_service,Going through files changed and leaving comments,No,2026-09-28,09:03:00,1:21:00,review
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,Daily standup and garden sync with the Kumva delivery team,Daily standup,No,2026-09-28,10:25:00,0:35:00,meeting
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,L-03 — Qdrant retrieval by domain collection,Checking we query the right collection for irrigation vs poultry,No,2026-09-28,13:07:00,1:38:00,feature
+Olivier Nkurunziza Karera,kareraolivier@gmail.com,Kumva,L-09 — LangGraph workflow wiring and advisory handoff,Notes on L-09 before the confidence gate,No,2026-09-28,14:45:00,2:00:00,feature
