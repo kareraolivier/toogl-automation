@@ -9,7 +9,7 @@
   time-entry descriptions are the actual work notes. Days run
   09:00–17:00 with standup around 10:30–11:00. Weekends and Rwandan
   public holidays are skipped. When the upload finishes, the hourly
-  GitHub Actions schedule is turned off.
+  GitHub Actions schedule is turned off automatically.
 
   RUN:
     python toggle_uploader.py
