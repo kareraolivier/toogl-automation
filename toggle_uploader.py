@@ -4,7 +4,7 @@
   Toggl Track Bulk Time Entry Uploader
   ─────────────────────────────────────
   Pushes Kumva time entries from where the last upload stopped
-  (8 Jun 2026, after 10:33) through today (28 Sep 2026) to Toggl.
+  (8 Jun 2026, after 10:33) through today (29 Oct 2026) to Toggl.
   Client "Kumva". Each GitHub-style ticket is its own Toggl project;
   time-entry descriptions are the actual work notes. Days run
   09:00–17:00 with standup around 10:30–11:00. Weekends and Rwandan
@@ -51,7 +51,7 @@ PROJECTS_CACHE_FILE      = "toggl_projects_cache.json"
 COMPLETE_FILE            = "toggl_complete.json"
 WORKFLOW_FILE            = ".github/workflows/toggl_upload.yml"
 START_DATE               = date(2026, 6, 8)   # day the previous run stopped
-END_DATE                 = date(2026, 9, 28)  # today
+END_DATE                 = date(2026, 10, 29)  # today
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  TICKET DATA  —  Kumva IoT / Analytic_service work
@@ -140,6 +140,15 @@ tickets = [
     (66, "L-08 — Recommendation message for text, USSD, IVR and email"),
     (67, "L-09 — LangGraph workflow wiring and advisory handoff"),
     (68, "L-10 — Agent 4: confidence gate, delivery and human-in-the-loop"),
+
+    # ── Sep 29 – Oct 10: L-06 message refiner (your commits) ─────────────
+    (70, "L-06 — Message refiner: SMS, USSD, IVR, and email"),
+    (71, "Address review comments on the LLM message refiner"),
+
+    # ── Oct 13 – Oct 29: Communication service preparation ───────────────
+    (72, "Communication service architecture and approach"),
+    (73, "Communication service sprint tickets on the Advisory board"),
+    (74, "Communication retry and channel delivery design"),
 ]
 
 # Ticket ids that belong to each delivery phase (so May does not log August work).
@@ -164,6 +173,18 @@ PHASES = [
     ]),
     (date(2026, 9, 16), date(2026, 9, 28),  [
         59, 59, 60, 66, 66, 63, 64, 65, 67, 68, 61, 62, 58, 38, 4,
+    ]),
+    # Olivier: L-06 refiner 30 Sep + review fixes 2 Oct; merged L-05 PR #7.
+    (date(2026, 9, 29), date(2026, 10, 12),  [
+        70, 70, 70, 71, 71, 38, 4,
+    ]),
+    # Local comm-prep docs from 14 Oct; sprint issues on Advisory board.
+    (date(2026, 10, 13), date(2026, 10, 21),  [
+        72, 72, 72, 73, 73, 4,
+    ]),
+    # Approach PDFs 22–26 Oct; retry diagram 28 Oct.
+    (date(2026, 10, 22), date(2026, 10, 29),  [
+        72, 73, 74, 74, 4,
     ]),
 ]
 
@@ -515,6 +536,31 @@ DESCRIPTIONS = {
         "Reviewing the kernel pack refactor — entity metrics and irrigation pack",
         "Reading the DomainPack contract and registry PRs",
         "Notes on K-1 to K-4 so LLM work sits on a stable analytics kernel",
+    ],
+    70: [
+        "Building L-06 — wording accepted assessments for SMS, USSD, IVR and email",
+        "Wiring the message refiner after the gateway hands over a valid assessment",
+        "Checking the refiner stays English-only and the channel texts still fit",
+    ],
+    71: [
+        "Addressing review comments on the LLM message refiner",
+        "Tightening the refiner tests after the PR notes",
+        "Re-checking schemas and the worker handoff after the review",
+    ],
+    72: [
+        "Writing the Communication service approach against the Octan architecture",
+        "Drawing context, alert sequence and delivery-state diagrams for Communication",
+        "Updating the Google Doc replies from the approach we locked",
+    ],
+    73: [
+        "Opening Sprint 1 and Sprint 2 Communication tickets on the Advisory board",
+        "Splitting consume-and-queue from send-and-retry so each issue is one slice",
+        "Checking the Sprint Backlog cards still match the approach",
+    ],
+    74: [
+        "Working through SMS, IVR, WhatsApp and email retry versus one-shot send",
+        "Writing the retry diagram so Africa's Talking callbacks are not a second SMS",
+        "Notes on quiet hours and what failed vs suppressed vs retrying means",
     ],
 }
 
