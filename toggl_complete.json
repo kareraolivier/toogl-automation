@@ -2,7 +2,8 @@
   "complete": true,
   "client_name": "KumvaIoT",
   "layout": "focus-per-ticket",
+  "start_date": "2026-06-08",
   "end_date": "2026-10-29",
-  "total_entries": 71,
-  "finished_at": "2026-10-29T16:18:37"
+  "total_entries": 224,
+  "finished_at": "2026-10-29T16:42:03"
 }
