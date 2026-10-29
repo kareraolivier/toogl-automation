@@ -3,8 +3,9 @@
 =============================================================================
   Toggl 2.0 Bulk Time Entry Uploader
   ───────────────────────────────────
-  Pushes KumvaIoT time entries from 29 Sep 2026 (the day after the last
-  report) through 29 Oct 2026 to Toggl 2.0 (focus.toggl.com).
+  Pushes KumvaIoT time entries from 8 Jun 2026 10:33 (where the last
+  successful Toggl Track upload stopped) through 29 Oct 2026 to Toggl 2.0
+  (focus.toggl.com). Days that already hold uploaded work are left alone.
   Client "KumvaIoT". Each GitHub-style ticket is its own Toggl project;
   time-entry descriptions are the actual work notes. Work blocks sit in
   09:00–17:00 and only fill time not already tracked (calendar meetings,
@@ -68,7 +69,8 @@ MAX_BLOCKS_PER_DAY       = 5      # generated work blocks per day
 PROGRESS_FILE            = "toggl_progress.json"
 PROJECTS_CACHE_FILE      = "toggl_projects_cache.json"
 COMPLETE_FILE            = "toggl_complete.json"
-START_DATE               = date(2026, 9, 29)   # day after the last sent report
+START_DATE               = date(2026, 6, 8)    # last Toggl Track upload stopped here
+START_AFTER              = "10:33"             # ...after the 09:52–10:33 block
 END_DATE                 = date(2026, 10, 29)  # today
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -928,8 +930,9 @@ def _mins(hhmm):
     return h * 60 + m
 
 
-def fetch_busy_minutes(first_day, last_day):
-    """Tracked entries per local date as (start_min, end_min); includes earlier uploads."""
+def fetch_busy_minutes(first_day, last_day, own_project_ids):
+    """Tracked (start_min, end_min) per local date, and the dates already holding
+    entries on our per-ticket projects (filled by an earlier run)."""
     date_from = datetime.combine(first_day, datetime.min.time(), LOCAL_TZ)
     date_to   = datetime.combine(last_day + timedelta(days=1), datetime.min.time(), LOCAL_TZ)
     entries = _list_all(
@@ -939,13 +942,16 @@ def fetch_busy_minutes(first_day, last_day):
         include_taskless="true",
     )
     busy = defaultdict(list)
+    filled = set()
     for e in entries:
         if not e.get("start") or not e.get("duration"):
             continue
         start = datetime.fromisoformat(e["start"].replace("Z", "+00:00")).astimezone(LOCAL_TZ)
         start_m = start.hour * 60 + start.minute
         busy[start.date().isoformat()].append((start_m, start_m + -(-e["duration"] // 60)))
-    return busy
+        if e.get("project_id") in own_project_ids:
+            filled.add(start.date().isoformat())
+    return busy, filled
 
 
 def fit_around_busy(day_entries, busy):
@@ -1120,8 +1126,9 @@ def load_progress():
     try:
         with open(PROGRESS_FILE, 'r') as f:
             data = json.load(f)
-        # Ignore progress left by the Toggl Track uploader.
-        if data.get("client_name") != CLIENT_NAME or data.get("layout") != UPLOAD_LAYOUT:
+        # Ignore progress left by the Toggl Track uploader or for another range.
+        if (data.get("client_name") != CLIENT_NAME or data.get("layout") != UPLOAD_LAYOUT
+                or data.get("start_date") != START_DATE.isoformat()):
             return {}
         return data
     except (FileNotFoundError, json.JSONDecodeError):
@@ -1132,6 +1139,7 @@ def save_progress(day, day_entries):
     if DRY_RUN:
         return
     payload = {
+        "start_date": START_DATE.isoformat(),
         "last_completed_date": day,
         "last_completed_end": day_entries[-1]["end"] if day_entries else None,
         "client_name": CLIENT_NAME,
@@ -1149,6 +1157,7 @@ def is_upload_complete():
         return False
     return (data.get("complete") is True and data.get("client_name") == CLIENT_NAME
             and data.get("layout") == UPLOAD_LAYOUT
+            and data.get("start_date") == START_DATE.isoformat()
             and data.get("end_date") == END_DATE.isoformat())
 
 
@@ -1160,6 +1169,7 @@ def mark_upload_complete(total):
             "complete": True,
             "client_name": CLIENT_NAME,
             "layout": UPLOAD_LAYOUT,
+            "start_date": START_DATE.isoformat(),
             "end_date": END_DATE.isoformat(),
             "total_entries": total,
             "finished_at": datetime.now().isoformat(timespec="seconds"),
@@ -1216,18 +1226,25 @@ def main():
     if done_through:
         print(f"   Resuming after {done_through}")
 
+    cache = _fresh_cache_if_changed(load_projects_cache())
+
     print("\nReading time already tracked in Toggl...")
-    busy = fetch_busy_minutes(date.fromisoformat(pending[0]), date.fromisoformat(pending[-1]))
-    plan = {day: fit_around_busy(by_day[day], busy.get(day, [])) for day in pending}
+    busy, filled = fetch_busy_minutes(date.fromisoformat(pending[0]),
+                                      date.fromisoformat(pending[-1]),
+                                      set(cache['projects'].values()))
+    busy[START_DATE.isoformat()].append((0, _mins(START_AFTER)))
+    plan = {day: [] if day in filled else fit_around_busy(by_day[day], busy.get(day, []))
+            for day in pending}
     total = sum(len(v) for v in plan.values())
     total_min = sum(e['duration_min'] for v in plan.values() for e in v)
     existing_min = sum(end - start for day in pending for start, end in busy.get(day, []))
     print(f"   {sum(len(busy.get(day, [])) for day in pending)} tracked entries "
           f"({existing_min / 60:.1f}h) already in Toggl across {len(pending)} working days")
+    if filled:
+        print(f"   {len(filled)} days already filled by an earlier run are skipped")
     print(f"   {total} new work blocks ({total_min / 60:.1f}h) fit into the free time")
 
     print(f"\nSetting up {CLIENT_NAME} client, projects and tags...")
-    cache     = _fresh_cache_if_changed(load_projects_cache())
     client_id = get_client_id(cache)
     projects  = setup_projects(cache, client_id, {e['ticket'] for v in plan.values() for e in v})
     tag_ids   = {name: get_tag_id(cache, name)
@@ -1243,7 +1260,9 @@ def main():
     for day in pending:
         day_entries = plan[day]
         print(f"\n  {datetime.fromisoformat(day).strftime('%A, %B %d, %Y')}")
-        if not day_entries:
+        if day in filled:
+            print("   (already filled by an earlier run)")
+        elif not day_entries:
             print("   (no free time left — already tracked)")
         for e in day_entries:
             print(f"   #{e['ticket']:3d} | {e['start']}-{e['end']} | {e['description'][:55]}")
