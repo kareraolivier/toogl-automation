@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-  Toggl Track Bulk Time Entry Uploader
-  ─────────────────────────────────────
-  Pushes Kumva time entries from where the last upload stopped
-  (8 Jun 2026, after 10:33) through today (29 Oct 2026) to Toggl.
-  Client "Kumva". Each GitHub-style ticket is its own Toggl project;
-  time-entry descriptions are the actual work notes. Days run
-  09:00–17:00 with standup around 10:30–11:00. Weekends and Rwandan
-  public holidays are skipped. When the upload finishes, the hourly
-  GitHub Actions schedule is turned off automatically.
+  Toggl 2.0 Bulk Time Entry Uploader
+  ───────────────────────────────────
+  Pushes KumvaIoT time entries from 29 Sep 2026 (the day after the last
+  report) through 29 Oct 2026 to Toggl 2.0 (focus.toggl.com).
+  Client "KumvaIoT". Each GitHub-style ticket is its own Toggl project;
+  time-entry descriptions are the actual work notes. Work blocks sit in
+  09:00–17:00 and only fill time not already tracked (calendar meetings,
+  standups, earlier uploads), so re-runs never double-book a slot.
+  Weekends and Rwandan public holidays are skipped.
 
   RUN:
-    python toggle_uploader.py
+    python toggle_uploader.py            # reads TOGGL_API_TOKEN from .env
+    DRY_RUN=1 python toggle_uploader.py  # show the plan, write nothing
 
   RESUME:
-    Just re-run the same command — it picks up where it left off.
-    If the hourly API limit is hit, it waits automatically and resumes.
+    Just re-run the same command — it picks up after the last uploaded day.
 =============================================================================
 """
 
@@ -25,32 +25,50 @@ import time
 import json
 import random
 import sys
-import re
 import os
-from collections import Counter
-from datetime import date, timedelta, datetime
+from collections import Counter, defaultdict
+from datetime import date, timedelta, datetime, timezone
+
+
+def _load_dotenv(filename=".env"):
+    """Fill os.environ from KEY=VALUE lines without overriding real env vars."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+    try:
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+    except FileNotFoundError:
+        pass
+
+
+_load_dotenv()
 
 # ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║  CREDENTIALS                                                             ║
+# ║  CREDENTIALS — toggl_sk_ key from Toggl 2.0 profile settings             ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
-API_TOKEN    = os.environ.get("TOGGL_API_TOKEN", "d01cecd78640e4a4786e8ec95265a8df")
-WORKSPACE_ID = "21632264"
+API_TOKEN       = os.environ.get("TOGGL_API_TOKEN", "")
+ORGANIZATION_ID = os.environ.get("TOGGL_ORGANIZATION_ID", "21633027")
+WORKSPACE_ID    = os.environ.get("TOGGL_WORKSPACE_ID", "21632264")
 
 # ╔═══════════════════════════════════════════════════════════════════════════╗
 # ║  CONFIGURATION                                                           ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
-CLIENT_NAME              = "Kumva"
+CLIENT_NAME              = "KumvaIoT"
+UPLOAD_LAYOUT            = "focus-per-ticket"
 DELAY_BETWEEN_REQUESTS   = 1.0    # seconds between each API call
-BATCH_SIZE               = 50     # entries per batch
-DELAY_BETWEEN_BATCHES    = 5      # seconds pause between batches
 MAX_RETRIES              = 3      # max retries on transient errors
-DRY_RUN                  = False  # set True to test without creating entries
-TIMEZONE_OFFSET          = "+02:00"  # Kigali = CAT = UTC+2
+DRY_RUN                  = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
+LOCAL_TZ                 = timezone(timedelta(hours=2))  # Kigali = CAT = UTC+2
+MIN_BLOCK_MIN            = 15     # shorter gaps between meetings are left empty
+MAX_BLOCKS_PER_DAY       = 5      # generated work blocks per day
 PROGRESS_FILE            = "toggl_progress.json"
 PROJECTS_CACHE_FILE      = "toggl_projects_cache.json"
 COMPLETE_FILE            = "toggl_complete.json"
-WORKFLOW_FILE            = ".github/workflows/toggl_upload.yml"
-START_DATE               = date(2026, 6, 8)   # day the previous run stopped
+START_DATE               = date(2026, 9, 29)   # day after the last sent report
 END_DATE                 = date(2026, 10, 29)  # today
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -814,78 +832,144 @@ def generate_all_entries():
     all_rows.sort(key=lambda r: (r['date'], r['start']))
     return all_rows
 
-
 # ═══════════════════════════════════════════════════════════════════════════
-#  TOGGL API HELPERS
+#  TOGGL 2.0 (FOCUS) API HELPERS
 # ═══════════════════════════════════════════════════════════════════════════
 
-API_BASE = "https://api.track.toggl.com/api/v9"
+API_ROOT = "https://focus.toggl.com/api"
+ORG_BASE = f"{API_ROOT}/organizations/{ORGANIZATION_ID}/workspaces/{WORKSPACE_ID}"
+WS_BASE  = f"{API_ROOT}/workspaces/{WORKSPACE_ID}"
 
 
-def get_auth():
-    return (API_TOKEN, "api_token")
+def _headers():
+    return {"Authorization": f"Bearer {API_TOKEN}", "Content-Type": "application/json"}
 
 
-def wait_for_quota(response_text):
-    """Parse reset seconds from a 402 response. In CI: exit cleanly. Locally: sleep."""
-    match = re.search(r'reset in (\d+) seconds', response_text)
-    wait  = int(match.group(1)) + 5 if match else 3600
-
-    if os.environ.get("CI"):
-        print(f"\n   Hourly API limit reached. Nothing new was uploaded. "
-              f"Quota resets in ~{wait}s (~{wait // 60} min). "
-              f"Do not re-run until then — extra runs waste the next window.")
-        sys.exit(0)
-
-    resume_at = datetime.now() + timedelta(seconds=wait)
-    print(f"\n   ⏳ Hourly API limit reached. Waiting {wait}s "
-          f"(until ~{resume_at.strftime('%H:%M:%S')})...")
-    time.sleep(wait)
-    print("   ▶️  Quota reset — resuming.\n")
+def _retry_after(r, retry):
+    try:
+        return int(r.headers.get("Retry-After", ""))
+    except ValueError:
+        return (2 ** retry) * 5
 
 
-def api_get(url, **kwargs):
-    """GET with auto-wait on 402."""
-    while True:
-        r = requests.get(url, auth=get_auth(), timeout=15, **kwargs)
-        if r.status_code == 402:
-            wait_for_quota(r.text)
-            continue
-        return r
+def _request(method, url, retry=0, **kwargs):
+    """HTTP call with backoff on 429/5xx. In CI a long rate-limit wait exits cleanly."""
+    try:
+        r = requests.request(method, url, headers=_headers(), timeout=30, **kwargs)
+    except requests.exceptions.RequestException as e:
+        if retry < MAX_RETRIES:
+            print(f"   Network error: {e}. Retrying...")
+            time.sleep(5 * (retry + 1))
+            return _request(method, url, retry + 1, **kwargs)
+        raise
+    if r.status_code == 429 or r.status_code >= 500:
+        wait = _retry_after(r, retry)
+        if r.status_code == 429 and os.environ.get("CI") and wait > 120:
+            print(f"\n   Toggl rate limit reached. Retry in ~{wait // 60} min; progress is saved.")
+            sys.exit(0)
+        if retry < MAX_RETRIES:
+            print(f"   {r.status_code} from Toggl. Waiting {wait}s...")
+            time.sleep(wait)
+            return _request(method, url, retry + 1, **kwargs)
+    return r
 
 
-def api_post(url, payload):
-    """POST with auto-wait on 402."""
-    while True:
-        r = requests.post(url, json=payload, auth=get_auth(), timeout=15)
-        if r.status_code == 402:
-            wait_for_quota(r.text)
-            continue
-        return r
+def _json(r):
+    body = r.json() if r.content else {}
+    if isinstance(body, dict) and "data" in body:
+        return body["data"]
+    return body
+
+
+def _list_all(url, **params):
+    """Follow `page` until an empty page (Toggl 2.0 lists have no total count)."""
+    items = []
+    for page in range(1, 500):
+        r = _request("GET", url, params={**params, "page": page, "per_page": 100})
+        if r.status_code != 200:
+            print(f"   GET {url} failed: {r.status_code} {r.text[:200]}")
+            sys.exit(1)
+        batch = _json(r)
+        if not batch:
+            break
+        items.extend(batch)
+    return items
 
 
 def test_connection():
     print("Testing connection...")
+    if not API_TOKEN:
+        print("   TOGGL_API_TOKEN is not set (.env locally, repository secret in Actions).")
+        return False
     try:
-        r = api_get(f"{API_BASE}/me")
-        if r.status_code == 200:
-            user = r.json()
-            print(f"   Authenticated as: {user.get('fullname', user.get('email', 'Unknown'))}")
-            print(f"   Email: {user.get('email', 'N/A')}")
-            return True
-        elif r.status_code == 403:
-            print("   Authentication failed. Check your API token.")
-            return False
-        else:
-            print(f"   Unexpected response: {r.status_code} - {r.text}")
-            return False
+        r = _request("GET", f"{API_ROOT}/users/me/settings")
     except requests.exceptions.RequestException as e:
         print(f"   Connection error: {e}")
         return False
+    if r.status_code == 200:
+        current = r.json().get("current_workspace_id")
+        print(f"   Authenticated with Toggl 2.0 (current workspace {current}, "
+              f"uploading to {WORKSPACE_ID})")
+        return True
+    if r.status_code in (401, 403):
+        print(f"   Authentication failed ({r.status_code}). TOGGL_API_TOKEN must be a "
+              f"toggl_sk_ key from Toggl 2.0 profile settings.")
+        return False
+    print(f"   Unexpected response: {r.status_code} - {r.text[:200]}")
+    return False
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  CLIENT & PROJECT SETUP
+#  EXISTING TIME — generated blocks only fill gaps around it
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _mins(hhmm):
+    h, m = map(int, hhmm.split(":"))
+    return h * 60 + m
+
+
+def fetch_busy_minutes(first_day, last_day):
+    """Tracked entries per local date as (start_min, end_min); includes earlier uploads."""
+    date_from = datetime.combine(first_day, datetime.min.time(), LOCAL_TZ)
+    date_to   = datetime.combine(last_day + timedelta(days=1), datetime.min.time(), LOCAL_TZ)
+    entries = _list_all(
+        f"{ORG_BASE}/time-entries",
+        date_from=date_from.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        date_to=date_to.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        include_taskless="true",
+    )
+    busy = defaultdict(list)
+    for e in entries:
+        if not e.get("start") or not e.get("duration"):
+            continue
+        start = datetime.fromisoformat(e["start"].replace("Z", "+00:00")).astimezone(LOCAL_TZ)
+        start_m = start.hour * 60 + start.minute
+        busy[start.date().isoformat()].append((start_m, start_m + -(-e["duration"] // 60)))
+    return busy
+
+
+def fit_around_busy(day_entries, busy):
+    """Drop generated standups and cut work blocks around already-tracked time."""
+    pieces = []
+    for e in day_entries:
+        if e["ticket"] == STANDUP_TICKET_ID:
+            continue
+        segs = [(_mins(e["start"]), _mins(e["end"]))]
+        for b_start, b_end in busy:
+            segs = [p for s, en in segs
+                    for p in ((s, min(en, b_start)), (max(s, b_end), en))
+                    if p[1] > p[0]]
+        for s, en in segs:
+            if en - s >= MIN_BLOCK_MIN:
+                pieces.append({**e, "start": _fmt_mins(s), "end": _fmt_mins(en),
+                               "duration_min": en - s})
+    while len(pieces) > MAX_BLOCKS_PER_DAY:
+        pieces.remove(min(pieces, key=lambda p: p["duration_min"]))
+    return sorted(pieces, key=lambda p: p["start"])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CLIENT, PROJECT & TAG SETUP
 # ═══════════════════════════════════════════════════════════════════════════
 
 def load_projects_cache():
@@ -897,173 +981,135 @@ def load_projects_cache():
 
 
 def save_projects_cache(cache):
+    if DRY_RUN:
+        return
     with open(PROJECTS_CACHE_FILE, 'w') as f:
         json.dump(cache, f, indent=2)
 
 
-def _fresh_cache_if_client_changed(cache):
-    """Drop cached ids unless they are Kumva + one Toggl project per ticket."""
-    if cache.get('client_name') != CLIENT_NAME or cache.get('layout') != 'per-ticket':
-        fresh = {'client_name': CLIENT_NAME, 'layout': 'per-ticket', 'projects': {}}
-        if cache.get('client_name') == CLIENT_NAME and 'client_id' in cache:
-            fresh['client_id'] = cache['client_id']
-        return fresh
+def _fresh_cache_if_changed(cache):
+    """Drop cached ids that belong to another client, layout or workspace."""
+    if (cache.get('client_name') != CLIENT_NAME or cache.get('layout') != UPLOAD_LAYOUT
+            or str(cache.get('workspace_id')) != str(WORKSPACE_ID)):
+        cache = {'client_name': CLIENT_NAME, 'layout': UPLOAD_LAYOUT,
+                 'workspace_id': WORKSPACE_ID}
     cache.setdefault('projects', {})
+    cache.setdefault('tags', {})
     return cache
 
 
-def get_or_create_client(cache):
-    """Return the Kumva client ID, creating it if needed."""
-    if 'client_id' in cache:
-        return cache['client_id']
-
-    r = api_get(f"{API_BASE}/workspaces/{WORKSPACE_ID}/clients")
-    if r.status_code == 200:
-        for c in r.json():
-            if c.get('name', '').lower() == CLIENT_NAME.lower():
-                print(f"   Found existing client: {CLIENT_NAME} (id={c['id']})")
-                cache['client_id'] = c['id']
-                cache['client_name'] = CLIENT_NAME
-                save_projects_cache(cache)
-                return c['id']
-
-    print(f"   Creating client: {CLIENT_NAME}...")
-    r = api_post(
-        f"{API_BASE}/workspaces/{WORKSPACE_ID}/clients",
-        {"name": CLIENT_NAME, "workspace_id": int(WORKSPACE_ID)},
-    )
+def _created_id(r, what):
     if r.status_code in (200, 201):
-        client_id = r.json()['id']
-        print(f"   Created client: {CLIENT_NAME} (id={client_id})")
-        cache['client_id'] = client_id
-        cache['client_name'] = CLIENT_NAME
-        save_projects_cache(cache)
-        time.sleep(DELAY_BETWEEN_REQUESTS)
-        return client_id
-
-    print(f"   Failed to create client: {r.status_code} {r.text[:200]}")
+        return _json(r)['id']
+    print(f"   Failed to create {what}: {r.status_code} {r.text[:200]}")
     sys.exit(1)
 
 
-def setup_projects(cache, client_id):
-    """Create one Toggl project per ticket title under the Kumva client."""
-    projects = cache.get('projects', {})
-    existing_by_name = {}
-    r = api_get(f"{API_BASE}/workspaces/{WORKSPACE_ID}/projects")
-    if r.status_code == 200:
-        for p in r.json():
-            if p.get('client_id') == client_id and p.get('name'):
-                existing_by_name[p['name'].lower()] = p['id']
+def get_client_id(cache):
+    if cache.get('client_id'):
+        return cache['client_id']
 
-    todo = [(tid, name) for tid, name in tickets if str(tid) not in projects]
+    for c in _list_all(f"{WS_BASE}/clients", name=CLIENT_NAME):
+        if c.get('name', '').lower() == CLIENT_NAME.lower():
+            print(f"   Found existing client: {c['name']} (id={c['id']})")
+            cache['client_id'] = c['id']
+            save_projects_cache(cache)
+            return c['id']
+
+    if DRY_RUN:
+        print(f"   [DRY RUN] Would create client: {CLIENT_NAME}")
+        return 0
+    client_id = _created_id(_request("POST", f"{WS_BASE}/clients", json={"name": CLIENT_NAME}),
+                            f"client {CLIENT_NAME}")
+    print(f"   Created client: {CLIENT_NAME} (id={client_id})")
+    cache['client_id'] = client_id
+    save_projects_cache(cache)
+    return client_id
+
+
+def setup_projects(cache, client_id, ticket_ids):
+    """One Toggl project per ticket title under the client, only for tickets in use."""
+    projects = cache['projects']
+    todo = [tid for tid in sorted(ticket_ids) if str(tid) not in projects]
     if not todo:
-        print(f"   All {len(tickets)} projects already exist (cached).")
+        print(f"   All {len(ticket_ids)} projects already exist (cached).")
         return projects
 
-    print(f"   Creating {len(todo)} missing projects under '{CLIENT_NAME}'...")
-    for tid, name in todo:
-        if name.lower() in existing_by_name:
-            projects[str(tid)] = existing_by_name[name.lower()]
-            cache['projects'] = projects
-            cache['layout'] = 'per-ticket'
-            save_projects_cache(cache)
-            print(f"   Found [{tid:3d}] {name[:60]}")
-            continue
+    existing = {}
+    if client_id:
+        for p in _list_all(f"{ORG_BASE}/projects", client_id=client_id):
+            if p.get('client_id') == client_id and p.get('name'):
+                existing[p['name'].strip().lower()] = p['id']
 
-        if DRY_RUN:
-            print(f"   [DRY RUN] Would create project: {name}")
+    names = dict(tickets)
+    for tid in todo:
+        name = names[tid]
+        if name.lower() in existing:
+            projects[str(tid)] = existing[name.lower()]
+            print(f"   Found [{tid:3d}] {name[:60]}")
+        elif DRY_RUN:
+            print(f"   [DRY RUN] Would create project [{tid:3d}] {name[:60]}")
             projects[str(tid)] = 0
             continue
-
-        r = api_post(
-            f"{API_BASE}/workspaces/{WORKSPACE_ID}/projects",
-            {
-                "name":         name,
-                "workspace_id": int(WORKSPACE_ID),
-                "client_id":    client_id,
-                "active":       True,
-            },
-        )
-        if r.status_code in (200, 201):
-            pid = r.json()['id']
-            projects[str(tid)] = pid
-            cache['projects'] = projects
-            cache['layout'] = 'per-ticket'
-            save_projects_cache(cache)
-            print(f"   + [{tid:3d}] {name[:60]}")
         else:
-            print(f"   Failed to create project '{name}': {r.status_code} {r.text[:200]}")
-            cache['projects'] = projects
-            save_projects_cache(cache)
-            sys.exit(1)
-
-        time.sleep(DELAY_BETWEEN_REQUESTS)
-
-    cache['projects'] = projects
-    cache['layout'] = 'per-ticket'
-    save_projects_cache(cache)
+            r = _request("POST", f"{ORG_BASE}/projects",
+                         json={"name": name, "client_id": client_id})
+            projects[str(tid)] = _created_id(r, f"project '{name}'")
+            print(f"   + [{tid:3d}] {name[:60]}")
+            time.sleep(DELAY_BETWEEN_REQUESTS)
+        save_projects_cache(cache)
     return projects
+
+
+def get_tag_id(cache, name):
+    tags = cache['tags']
+    if name in tags:
+        return tags[name]
+    for t in _list_all(f"{WS_BASE}/tags", name=name):
+        if t.get('name', '').lower() == name:
+            tags[name] = t['id']
+            save_projects_cache(cache)
+            return t['id']
+    if DRY_RUN:
+        print(f"   [DRY RUN] Would create tag: {name}")
+        return 0
+    tags[name] = _created_id(_request("POST", f"{WS_BASE}/tags", json={"name": name}),
+                             f"tag {name}")
+    save_projects_cache(cache)
+    return tags[name]
+
+
+def _tag_name(entry):
+    desc = entry['description'].lower()
+    return "review" if 'review' in desc or 'comment' in desc else "feature"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  TIME ENTRY CREATION
 # ═══════════════════════════════════════════════════════════════════════════
 
-def create_time_entry(entry, project_id, retry_count=0):
-    start_dt         = f"{entry['date']}T{entry['start']}:00{TIMEZONE_OFFSET}"
-    duration_seconds = entry['duration_min'] * 60
-    description      = entry['description']
-
-    payload = {
-        "description":   description,
-        "start":         start_dt,
-        "duration":      duration_seconds,
-        "created_with":  "toggl_bulk_uploader",
-        "workspace_id":  int(WORKSPACE_ID),
-        "project_id":    int(project_id),
+def _entry_payload(entry, project_id, tag_id):
+    local = datetime.fromisoformat(f"{entry['date']}T{entry['start']}").replace(tzinfo=LOCAL_TZ)
+    return {
+        "description": entry['description'],
+        "start":       local.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "duration":    entry['duration_min'] * 60,
+        "project_id":  int(project_id),
+        "tag_ids":     [int(tag_id)],
+        "type":        "activity",
     }
 
-    desc_lower = description.lower()
-    if entry.get('ticket') == STANDUP_TICKET_ID or 'standup' in desc_lower:
-        payload["tags"] = ["meeting"]
-    elif 'review' in desc_lower or 'comment' in desc_lower:
-        payload["tags"] = ["review"]
-    else:
-        payload["tags"] = ["feature"]
 
-    if DRY_RUN:
-        print(f"   [DRY RUN] {description[:50]} | {entry['date']} {entry['start']}-{entry['end']}")
+def upload_day(payloads):
+    """Create one day's entries in a single bulk call (taskless, scoped to projects)."""
+    url = f"{ORG_BASE}/time-entries/bulk"
+    r = _request("POST", url, json=payloads)
+    if r.status_code == 400:
+        r = _request("POST", url, json={"items": payloads})
+    if r.status_code in (200, 201, 204):
         return True
-
-    try:
-        r = api_post(f"{API_BASE}/workspaces/{WORKSPACE_ID}/time_entries", payload)
-
-        if r.status_code in (200, 201):
-            return True
-        elif r.status_code == 429:
-            if retry_count < MAX_RETRIES:
-                wait = (2 ** retry_count) * 2 + random.uniform(0, 1)
-                print(f"   Rate limited (429). Waiting {wait:.0f}s...")
-                time.sleep(wait)
-                return create_time_entry(entry, project_id, retry_count + 1)
-            return False
-        elif r.status_code == 403:
-            print(f"   Forbidden (403). Check workspace ID and permissions.")
-            print(f"   Response: {r.text[:200]}")
-            return False
-        else:
-            print(f"   Error {r.status_code}: {r.text[:200]}")
-            if retry_count < MAX_RETRIES:
-                time.sleep((2 ** retry_count) + random.uniform(0, 1))
-                return create_time_entry(entry, project_id, retry_count + 1)
-            return False
-
-    except requests.exceptions.RequestException as e:
-        print(f"   Network error: {e}")
-        if retry_count < MAX_RETRIES:
-            time.sleep(5)
-            return create_time_entry(entry, project_id, retry_count + 1)
-        return False
+    print(f"\n   Error {r.status_code}: {r.text[:300]}")
+    return False
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1074,85 +1120,50 @@ def load_progress():
     try:
         with open(PROGRESS_FILE, 'r') as f:
             data = json.load(f)
-        # Ignore leftover GrantHive progress.
-        if data.get("client_name") != CLIENT_NAME or data.get("layout") != "per-ticket":
+        # Ignore progress left by the Toggl Track uploader.
+        if data.get("client_name") != CLIENT_NAME or data.get("layout") != UPLOAD_LAYOUT:
             return {}
         return data
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
 
-def save_progress(index, entry=None):
+def save_progress(day, day_entries):
+    if DRY_RUN:
+        return
     payload = {
-        "last_completed_index": index,
+        "last_completed_date": day,
+        "last_completed_end": day_entries[-1]["end"] if day_entries else None,
         "client_name": CLIENT_NAME,
-        "layout": "per-ticket",
+        "layout": UPLOAD_LAYOUT,
     }
-    if entry:
-        payload["last_completed_date"] = entry["date"]
-        payload["last_completed_start"] = entry["start"]
-        payload["last_completed_end"] = entry["end"]
     with open(PROGRESS_FILE, 'w') as f:
         json.dump(payload, f)
-
-
-def resume_index(entries, progress):
-    """First entry strictly after the last uploaded block (date + end time)."""
-    last_date = progress.get("last_completed_date")
-    last_end = progress.get("last_completed_end")
-    if last_date and last_end:
-        for i, entry in enumerate(entries):
-            if (entry["date"], entry["start"]) > (last_date, last_end):
-                return i
-        return len(entries)
-    return progress.get("last_completed_index", -1) + 1
 
 
 def is_upload_complete():
     try:
         with open(COMPLETE_FILE, 'r') as f:
-            return json.load(f).get("complete") is True
+            data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return False
+    return (data.get("complete") is True and data.get("client_name") == CLIENT_NAME
+            and data.get("layout") == UPLOAD_LAYOUT
+            and data.get("end_date") == END_DATE.isoformat())
 
 
 def mark_upload_complete(total):
+    if DRY_RUN:
+        return
     with open(COMPLETE_FILE, 'w') as f:
         json.dump({
             "complete": True,
             "client_name": CLIENT_NAME,
+            "layout": UPLOAD_LAYOUT,
+            "end_date": END_DATE.isoformat(),
             "total_entries": total,
             "finished_at": datetime.now().isoformat(timespec="seconds"),
         }, f, indent=2)
-
-
-def disable_hourly_schedule():
-    """Comment out the cron so GitHub Actions stops after a successful upload."""
-    try:
-        with open(WORKFLOW_FILE, 'r') as f:
-            text = f.read()
-    except FileNotFoundError:
-        return False
-    new, n = re.subn(
-        r"^(\s*)- cron: ('5 \* \* \* \*'.*?)$",
-        r"\1# - cron: '5 * * * *'   # stopped: Toggl upload complete",
-        text,
-        count=1,
-        flags=re.M,
-    )
-    if n == 0:
-        return False
-    # Empty `schedule:` is invalid YAML — keep workflow_dispatch only.
-    new = re.sub(
-        r"\n  schedule:\n    # - cron:.*\n",
-        "\n",
-        new,
-        count=1,
-    )
-    with open(WORKFLOW_FILE, 'w') as f:
-        f.write(new)
-    print("   Hourly GitHub Actions schedule disabled.")
-    return True
 
 
 def _confirm(prompt):
@@ -1168,128 +1179,91 @@ def _confirm(prompt):
 
 def main():
     print("=" * 65)
-    print("  TOGGL TRACK — BULK TIME ENTRY UPLOADER")
-    print(f"  Kumva | {START_DATE.strftime('%b %-d')} – {END_DATE.strftime('%b %-d, %Y')} | resume after last uploaded block")
-    print("  One Toggl project per ticket | standup ~10:30 | skips weekends/holidays")
+    print("  TOGGL 2.0 — BULK TIME ENTRY UPLOADER")
+    print(f"  {CLIENT_NAME} | {START_DATE.strftime('%b %-d')} – {END_DATE.strftime('%b %-d, %Y')}")
+    print("  One project per ticket | fills gaps around tracked meetings")
     print("=" * 65)
     print()
 
     if is_upload_complete():
-        print("  Upload already complete. Hourly job will not create more entries.")
-        disable_hourly_schedule()
+        print(f"  Upload through {END_DATE} already complete. Nothing to do.")
         return
 
     if not test_connection():
         print("\nConnection failed. Please check your credentials and try again.")
         sys.exit(1)
 
-    print(f"\nSetting up {CLIENT_NAME} client and per-ticket projects...")
-    cache     = _fresh_cache_if_client_changed(load_projects_cache())
-    client_id = get_or_create_client(cache)
-    projects  = setup_projects(cache, client_id)
-    print(f"   {len(projects)} projects ready.\n")
-
-    print("Generating time entries...")
-    entries = generate_all_entries()
-    days = len(set(e['date'] for e in entries))
-    total_min = sum(e['duration_min'] for e in entries)
+    print("\nGenerating time entries...")
+    by_day = defaultdict(list)
+    for e in generate_all_entries():
+        by_day[e['date']].append(e)
     skipped_holidays = []
     d = START_DATE
     while d <= END_DATE:
         if d.weekday() < 5 and not is_rwanda_workday(d):
             skipped_holidays.append(d)
         d += timedelta(days=1)
-    print(f"   {len(entries)} entries across {days} working days "
-          f"({total_min / 60:.1f} hours total, ~{total_min / 60 / days:.1f}h/day)")
     if skipped_holidays:
         print("   Skipped Rwandan holidays: " +
               ", ".join(h.strftime("%a %d %b") for h in skipped_holidays))
 
-    progress   = load_progress()
-    start_from = resume_index(entries, progress)
-
-    if start_from >= len(entries):
-        print("\n  Nothing left to upload. Marking complete and stopping the hourly job.")
-        mark_upload_complete(len(entries))
-        disable_hourly_schedule()
+    done_through = load_progress().get("last_completed_date", "")
+    pending = [day for day in sorted(by_day) if day > done_through]
+    if not pending:
+        print("\n  Nothing left to upload.")
+        mark_upload_complete(0)
         return
+    if done_through:
+        print(f"   Resuming after {done_through}")
 
-    if start_from > 0:
-        nxt = entries[start_from]
-        print(f"\nResuming from {nxt['date']} {nxt['start']} "
-              f"(entry {start_from + 1}/{len(entries)}, "
-              f"skipping {start_from} already uploaded)")
-        if not _confirm("   Continue? [Y/n]: "):
-            print("   Aborted.")
-            sys.exit(0)
-    else:
-        print(f"\nReady to upload {len(entries)} time entries to Toggl.")
-        if DRY_RUN:
-            print("   DRY RUN MODE — no entries will actually be created.")
-        if not _confirm("   Proceed? [Y/n]: "):
-            print("   Aborted.")
-            sys.exit(0)
+    print("\nReading time already tracked in Toggl...")
+    busy = fetch_busy_minutes(date.fromisoformat(pending[0]), date.fromisoformat(pending[-1]))
+    plan = {day: fit_around_busy(by_day[day], busy.get(day, [])) for day in pending}
+    total = sum(len(v) for v in plan.values())
+    total_min = sum(e['duration_min'] for v in plan.values() for e in v)
+    existing_min = sum(end - start for day in pending for start, end in busy.get(day, []))
+    print(f"   {sum(len(busy.get(day, [])) for day in pending)} tracked entries "
+          f"({existing_min / 60:.1f}h) already in Toggl across {len(pending)} working days")
+    print(f"   {total} new work blocks ({total_min / 60:.1f}h) fit into the free time")
 
-    print()
-    success_count = 0
-    fail_count    = 0
-    current_date  = ""
+    print(f"\nSetting up {CLIENT_NAME} client, projects and tags...")
+    cache     = _fresh_cache_if_changed(load_projects_cache())
+    client_id = get_client_id(cache)
+    projects  = setup_projects(cache, client_id, {e['ticket'] for v in plan.values() for e in v})
+    tag_ids   = {name: get_tag_id(cache, name)
+                 for name in sorted({_tag_name(e) for v in plan.values() for e in v})}
 
-    for i in range(start_from, len(entries)):
-        entry     = entries[i]
-        batch_num = (i // BATCH_SIZE) + 1
+    if DRY_RUN:
+        print("\n   DRY RUN MODE — no entries will actually be created.")
+    elif not _confirm(f"\n   Upload {total} entries to Toggl? [Y/n]: "):
+        print("   Aborted.")
+        sys.exit(0)
 
-        if entry['date'] != current_date:
-            current_date = entry['date']
-            dt = datetime.fromisoformat(current_date)
-            print(f"\n  {dt.strftime('%A, %B %d, %Y')}")
-
-        pct        = ((i + 1) / len(entries)) * 100
-        desc_short = entry['description'][:45] + "..." \
-                     if len(entry['description']) > 45 else entry['description']
-        print(f"   [{i+1:3d}/{len(entries)}] ({pct:5.1f}%) #{entry['ticket']:3d} | "
-              f"{entry['start']}-{entry['end']} | {desc_short}", end="", flush=True)
-
-        project_id = projects.get(str(entry['ticket']))
-        if not project_id:
-            print(" FAIL (missing project)")
-            fail_count += 1
-            continue
-
-        ok = create_time_entry(entry, project_id)
-
-        if ok:
-            success_count += 1
-            print(" OK")
-            save_progress(i, entry)
-        else:
-            fail_count += 1
-            print(" FAIL")
-
-        time.sleep(DELAY_BETWEEN_REQUESTS)
-
-        if (i + 1) % BATCH_SIZE == 0 and i + 1 < len(entries):
-            print(f"\n   Batch {batch_num} complete. Pausing {DELAY_BETWEEN_BATCHES}s...")
-            time.sleep(DELAY_BETWEEN_BATCHES)
+    uploaded = 0
+    for day in pending:
+        day_entries = plan[day]
+        print(f"\n  {datetime.fromisoformat(day).strftime('%A, %B %d, %Y')}")
+        if not day_entries:
+            print("   (no free time left — already tracked)")
+        for e in day_entries:
+            print(f"   #{e['ticket']:3d} | {e['start']}-{e['end']} | {e['description'][:55]}")
+        if day_entries and not DRY_RUN:
+            payloads = [_entry_payload(e, projects[str(e['ticket'])], tag_ids[_tag_name(e)])
+                        for e in day_entries]
+            if not upload_day(payloads):
+                print(f"\n  Stopped at {day}. Re-run to retry from this day.")
+                sys.exit(1)
+            uploaded += len(day_entries)
+            time.sleep(DELAY_BETWEEN_REQUESTS)
+        save_progress(day, day_entries)
 
     print("\n" + "=" * 65)
-    print("  UPLOAD COMPLETE")
+    print("  DRY RUN COMPLETE" if DRY_RUN else "  UPLOAD COMPLETE")
     print("=" * 65)
-    print(f"  Successful: {success_count}")
-    print(f"  Failed:     {fail_count}")
-    print(f"  Total:      {success_count + fail_count}/{len(entries)}")
+    print(f"  Entries: {total if DRY_RUN else uploaded} across {len(pending)} days "
+          f"({total_min / 60:.1f}h)")
     print()
-
-    if fail_count > 0:
-        print("  Some entries failed. Re-run to retry from where it stopped.")
-    elif start_from < len(entries) and success_count + fail_count < (len(entries) - start_from):
-        print("  Stopped early (API limit). Next scheduled run will resume.")
-    else:
-        mark_upload_complete(len(entries))
-        disable_hourly_schedule()
-        print("  All entries uploaded successfully!")
-        print("  Hourly GitHub Actions schedule is now off.")
-    print()
+    mark_upload_complete(uploaded)
 
 
 if __name__ == "__main__":
